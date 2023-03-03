@@ -1,0 +1,25 @@
+[tool.pdm]
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest>=7.2.2",
+    "black>=23.1.0",
+    "isort>=5.11.5",
+    "ruff>=0.0.253",
+    "pyflakes>=3.0.1",
+]
+
+[project]
+name = "pytest-tally"
+version = "0.1.0"
+description = "A Pytest plugin that shows a running tally of test suite stats in realtime"
+authors = [
+    {name = "Jeffrey Wright", email = "jeff.washcloth@gmail.com"},
+]
+dependencies = []
+requires-python = ">=3.7"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-pep517>=1.0"]
+build-backend = "pdm.pep517.api"
