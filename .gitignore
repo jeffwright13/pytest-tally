@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# PEP 582 (via PDM)
+pdm.lock
+.pdm.toml
+__pypackages__/
+
+# IDEs
+.vscode/
