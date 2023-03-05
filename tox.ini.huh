@@ -1,0 +1,45 @@
+[tox]
+min_version = 4.0
+env_list =
+activate
+    py310
+    py39
+    py38
+    format
+    lint
+    type
+
+[testenv:activate]
+skip_install = true
+deps =
+    venv: python -m venv venv {posargs}
+commands =
+
+
+; [testenv:test]
+; skip_install = true
+; deps =
+;     pytest:
+; commands = pytest {posargs:tests/}
+
+; [testenv:demo-test]
+; skip_install = true
+; deps = pytest
+; commands = pytest {posargs:demo-tests/}
+
+; [testenv:format]
+; deps = black isort
+; commands =
+;     isort {posargs:./pytest_tally}
+;     black {posargs:./pytest_tally}
+
+; [testenv:lint]
+; deps = pyflakes flake8
+; commands =
+;     pyflakes src
+;     flake8 src
+
+; [testenv:type]
+; deps = mypy
+; commands =
+;     mypy src
