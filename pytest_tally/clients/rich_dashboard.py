@@ -7,37 +7,36 @@ from rich.table import Table
 from rich.text import Text
 
 
+
+#    return {
+#         "node_id": tally_test.node_id,
+#         "final_outcome": tally_test.final_outcome,
+#         "duration": tally_test.timer.elapsed,
+#     }
+
 class Duration(Quantity):
     units = "s"
-    prec = 3
+    prec = 2
 
 
-from pytest_tally.plugin import FILE, TestSessionData
-
-NULL_TEST_SESSION_DATA = TestSessionData(
-    num_collected_tests=0,
-    start_time=None,
-    end_time=None,
-    total_duration=0,
-    reports={},
-    session_finished=False,
-)
+from pytest_tally.plugin import FILE, TallyTestSessionData, NULL_TALLY_TEST_SESSION_DATA
+from pytest_tally.utils import human_time_duration
 
 
-def get_test_session_data() -> TestSessionData:
+def get_test_session_data() -> TallyTestSessionData:
     try:
         with open(FILE, "r") as jfile:
             try:
                 j = json.load(jfile)
             except json.decoder.JSONDecodeError:
-                return NULL_TEST_SESSION_DATA
-        return TestSessionData.from_json(j)
+                return NULL_TALLY_TEST_SESSION_DATA
+        return TallyTestSessionData.from_json(j)
 
     except (FileNotFoundError, EOFError):
         print(
             "File not found error encountered during get_test_session_data() - returning null test_session_data."
         )
-        return NULL_TEST_SESSION_DATA
+        return NULL_TALLY_TEST_SESSION_DATA
 
 
 def generate_table() -> Table:
@@ -47,16 +46,15 @@ def generate_table() -> Table:
     table.add_column("Test NodeId")
     table.add_column("Duration")
     table.add_column("Outcome")
-    table.caption = f"[b]Total Test Session Duration: {Duration(test_session_data.total_duration)}[/b]"
 
-    for report in test_session_data.reports:
-        name = Text(test_session_data.reports[report]["node_id"], style="bold cyan")
+    for test in test_session_data.tally_tests:
+        name = Text(test_session_data.tally_tests[test]["node_id"], style="bold cyan")
         duration = (
-            Duration(str(test_session_data.reports[report]["duration"]))
-            if test_session_data.reports[report]["duration"]
+            Duration(str(test_session_data.tally_tests[test]["duration"]))
+            if test_session_data.tally_tests[test]["duration"]
             else "-"
         )
-        outcome = Text(test_session_data.reports[report]["modified_outcome"])
+        outcome = Text(test_session_data.tally_tests[test]["final_outcome"])
         if "passed" in outcome.plain.lower():
             outcome.stylize("green")
         elif "failed" in outcome.plain.lower():
@@ -68,6 +66,11 @@ def generate_table() -> Table:
         else:
             outcome.stylize("blue")
         table.add_row(name, render(duration, "s"), outcome)
+
+        if test_session_data.total_duration >= 60:
+            table.caption = f"Test Session Duration: {human_time_duration(test_session_data.total_duration)}"
+        else:
+            table.caption = f"Test Session Duration: {Duration(test_session_data.total_duration)}"
 
     return table
 

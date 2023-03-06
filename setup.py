@@ -14,7 +14,7 @@ def read(fname):
 
 setup(
     name="pytest-tally",
-    version="0.1.0",
+    version="0.1.1",
     author="Jeff Wright",
     author_email="jeff.washcloth@gmail.com",
     license="MIT",
@@ -25,8 +25,15 @@ setup(
     packages=find_packages(),
     py_modules=["pytest_tally"],
     python_requires=">=3.8",
-    # install_requires=[
-    # ],
+    install_requires=[
+        # "blessed==1.19.1",
+        "count-timer==0.3.8",
+        "dataclasses-json==0.5.7",
+        "pytest>=6.2.5",
+        "quantiphy==2.19",
+        "rich==13.3.2",
+        "single-source==0.3.0",
+    ],
     setup_requires=["setuptools_scm"],
     include_package_data=True,
     classifiers=[
@@ -45,6 +52,7 @@ setup(
     entry_points={
         "pytest11": ["pytest_tally = pytest_tally.plugin"],
         "console_scripts": [
+            "tally = pytest_tally.clients.rich_dashboard:main",
             "tally-rich = pytest_tally.clients.rich_dashboard:main",
         ],
     },
