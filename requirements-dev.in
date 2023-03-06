@@ -2,3 +2,4 @@ black
 faker
 isort
 pyflakes
+twine

@@ -127,3 +127,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# VsCode
+settings.json
+launch.json
+
+# JetBrains
+.idea/
+
+# pytest-tally scratch file
+data.json
