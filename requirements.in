@@ -1,3 +1,5 @@
+dataclasses-json
 pytest
-faker
+quantiphy
 rich
+single-source

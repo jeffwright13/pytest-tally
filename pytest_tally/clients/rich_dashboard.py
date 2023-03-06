@@ -1,15 +1,18 @@
 import json
 import time
-from pathlib import Path
-from typing import Dict
 
-from dataclasses_json import dataclass_json
-from quantiphy import Quantity
+from quantiphy import Quantity, render
 from rich.live import Live
-from rich.progress import Progress
 from rich.table import Table
+from rich.text import Text
 
-from pytest_tally.plugin import FILE, TestReportDistilled, TestSessionData
+
+class Duration(Quantity):
+    units = "s"
+    prec = 3
+
+
+from pytest_tally.plugin import FILE, TestSessionData
 
 
 def get_test_session_data() -> TestSessionData:
@@ -38,7 +41,7 @@ def get_test_session_data() -> TestSessionData:
 
 
 def generate_table() -> Table:
-    table = Table()
+    table = Table(highlight=True)
     table.add_column("Test NodeId")
     table.add_column("Duration")
     table.add_column("Outcome")
@@ -46,7 +49,21 @@ def generate_table() -> Table:
     test_session_data = get_test_session_data()
 
     for report in test_session_data.reports:
-        table.add_row(test_session_data.reports[report]["node_id"], str(test_session_data.reports[report]["duration"]) if test_session_data.reports[report]["duration"] else "-", test_session_data.reports[report]["modified_outcome"])
+        name = Text(test_session_data.reports[report]["node_id"], style="bold cyan")
+        duration = Duration(str(test_session_data.reports[report]["duration"])) if test_session_data.reports[report]["duration"] else "-"
+        outcome = Text(test_session_data.reports[report]["modified_outcome"])
+        if "passed" in outcome.plain.lower():
+            outcome.stylize("green")
+        elif "failed" in outcome.plain.lower():
+            outcome.stylize("red")
+        elif "skipped" in outcome.plain.lower():
+            outcome.stylize("yellow")
+        elif "error" in outcome.plain.lower():
+            outcome.stylize("magenta")
+        else:
+            outcome.stylize("blue")
+
+        table.add_row(name, render(duration, 's'), outcome)
     return table
 
 

@@ -1,2 +1,2 @@
 # pytest-tally
-A Pytest plugin that shows a running tally of test suite stats in realtime
+A Pytest plugin to generate realtime summary stats, and display them in-console using a text-based dashboard.

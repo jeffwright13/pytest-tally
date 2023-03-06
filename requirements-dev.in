@@ -1,4 +1,4 @@
-pytest
 black
-pyflakes
+faker
 isort
+pyflakes

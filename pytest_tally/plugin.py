@@ -35,8 +35,19 @@ class TestSessionData:
     session_finished: bool
 
 
-# @pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_addoption(parser) -> None:
+    group = parser.getgroup("tally")
+    group.addoption(
+        "--tally",
+        action="store_true",
+        help="Enable the pytest-tally plugin. Generates a live-updating table of test results in the terminal.",
+    )
+
+
 def pytest_sessionstart(session):
+    if not hasattr(session.config.option, "tally"):
+        return
+
     session.test_session_data = TestSessionData(
         total_duration=0, num_collected_tests=0, reports={}, session_finished=False
     )
@@ -45,8 +56,10 @@ def pytest_sessionstart(session):
         json.dump(j, file)
 
 
-# @pytest.hookimpl(hookwrapper=True)
 def pytest_collection_finish(session):
+    if not hasattr(session.config.option, "tally"):
+        return
+
     session.test_session_data = TestSessionData(
         total_duration=0, num_collected_tests=0, reports={}, session_finished=False
     )
@@ -63,6 +76,9 @@ def pytest_collection_finish(session):
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
+    if not hasattr(item.session.config.option, "tally"):
+        return
+
     def _process_outcome(report):
         if report.when in ["setup", "teardown"] and report.outcome == "failed":
             return "Error"
@@ -87,9 +103,14 @@ def pytest_runtest_makereport(item, call):
         json.dump(j, file)
 
 
-# @pytest.hookimpl(hookwrapper=True)
 def pytest_sessionfinish(session, exitstatus):
-    session.test_session_data.total_duration = sum([session.test_session_data.reports[report].duration for report in session.test_session_data.reports])
+    if not hasattr(session.config.option, "tally"):
+        return
+
+    session.test_session_data.total_duration = sum(
+        session.test_session_data.reports[report].duration
+        for report in session.test_session_data.reports
+    )
     # session.test_session_data.total_duration = session.duration
     session.test_session_data.session_finished = True
     with open(FILE, "w") as file:

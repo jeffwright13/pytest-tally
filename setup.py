@@ -19,22 +19,13 @@ setup(
     author_email="jeff.washcloth@gmail.com",
     license="MIT",
     url="https://github.com/jeffwright13/pytest-tally",
-    # description="Text User Interface (TUI) and HTML report for Pytest test runs",
+    description="A Pytest plugin to generate realtime summary stats, and display them in-console using a text-based dashboard.",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
     packages=find_packages(),
     py_modules=["pytest_tally"],
     python_requires=">=3.7",
     # install_requires=[
-    #     "ansi2html==1.8.0",
-    #     # "blessed==1.19.1",
-    #     "Faker==13.15.0",
-    #     "json2table==1.1.5",
-    #     # "pytest>=6.2.5",
-    #     "pytest-metadata==2.0.4",
-    #     "single-source==0.3.0",
-    #     "strip-ansi==0.1.1",
-    #     "textual==0.1.18",
     # ],
     setup_requires=["setuptools_scm"],
     include_package_data=True,
@@ -52,9 +43,8 @@ setup(
     keywords="pytest pytest-plugin testing tui textual html",
     entry_points={
         "pytest11": ["pytest_tally = pytest_tally.plugin"],
-        # "console_scripts": [
-        #     "tui = pytest_tui.tui_gen:main",
-        #     "tuih = pytest_tui.html_gen:main",
-        # ],
+        "console_scripts": [
+            "tally-rich = pytest_tally.clients.rich_dashboard:main",
+        ],
     },
 )
