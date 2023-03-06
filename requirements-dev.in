@@ -4,3 +4,4 @@ isort
 pyflakes
 pytest-rerunfailures
 twine
+wheel
