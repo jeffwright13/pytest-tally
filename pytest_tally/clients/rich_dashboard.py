@@ -1,4 +1,6 @@
 import json
+import platform
+import subprocess
 import time
 
 from quantiphy import Quantity, render
@@ -6,13 +8,8 @@ from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 
+from blessed import Terminal
 
-
-#    return {
-#         "node_id": tally_test.node_id,
-#         "final_outcome": tally_test.final_outcome,
-#         "duration": tally_test.timer.elapsed,
-#     }
 
 class Duration(Quantity):
     units = "s"
@@ -21,6 +18,18 @@ class Duration(Quantity):
 
 from pytest_tally.plugin import FILE, TallyTestSessionData, NULL_TALLY_TEST_SESSION_DATA
 from pytest_tally.utils import human_time_duration
+
+
+def clear_file() -> None:
+    with open(FILE, "w") as jfile:
+        jfile.write("")
+
+
+def clear_terminal() -> None:
+    if platform.system() == "Windows":
+        subprocess.Popen("cls", shell=True).communicate()
+    else:
+        print("\033c", end="")
 
 
 def get_test_session_data() -> TallyTestSessionData:
@@ -76,7 +85,10 @@ def generate_table() -> Table:
 
 
 def main():
-    # table = generate_table()
+    clear_file()
+    term = Terminal()
+    clear_terminal()
+
     while True:
         test_session_data = get_test_session_data()
         with Live(generate_table(), refresh_per_second=4) as live:
@@ -89,7 +101,9 @@ def main():
             test_session_data = get_test_session_data()
             if not test_session_data.session_finished:
                 break
-            time.sleep(0.5)
+            time.sleep(0.25)
+
+        clear_terminal()
 
 
 if __name__ == "__main__":
