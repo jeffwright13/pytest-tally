@@ -1,6 +1,7 @@
 import json
 from typing import Any, Dict
 
+
 def human_time_duration(seconds):
     # Credit to borgstrom: https://gist.github.com/borgstrom/936ca741e885a1438c374824efb038b3
     TIME_DURATION_UNITS = (

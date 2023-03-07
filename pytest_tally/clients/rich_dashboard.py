@@ -5,18 +5,18 @@ import time
 
 from quantiphy import Quantity, render
 from rich.live import Live
+from rich.status import Status
 from rich.table import Table
 from rich.text import Text
 
 from blessed import Terminal
-
 
 class Duration(Quantity):
     units = "s"
     prec = 2
 
 
-from pytest_tally.plugin import FILE, TallyTestSessionData, NULL_TALLY_TEST_SESSION_DATA
+from pytest_tally.plugin import FILE, NULL_TALLY_TEST_SESSION_DATA, TallyTestSessionData
 from pytest_tally.utils import human_time_duration
 
 
@@ -33,22 +33,15 @@ def clear_terminal() -> None:
 
 
 def get_test_session_data() -> TallyTestSessionData:
-    try:
-        with open(FILE, "r") as jfile:
-            try:
-                j = json.load(jfile)
-            except json.decoder.JSONDecodeError:
-                return NULL_TALLY_TEST_SESSION_DATA
-        return TallyTestSessionData.from_json(j)
-
-    except (FileNotFoundError, EOFError):
-        print(
-            "File not found error encountered during get_test_session_data() - returning null test_session_data."
-        )
-        return NULL_TALLY_TEST_SESSION_DATA
+    with open(FILE, "r") as jfile:
+        try:
+            j = json.load(jfile)
+        except json.decoder.JSONDecodeError:
+            return NULL_TALLY_TEST_SESSION_DATA
+    return TallyTestSessionData.from_json(j)
 
 
-def generate_table() -> Table:
+def generate_table(stylize_last_line: bool = True) -> Table:
     test_session_data = get_test_session_data()
 
     table = Table(highlight=True)
@@ -56,8 +49,12 @@ def generate_table() -> Table:
     table.add_column("Duration")
     table.add_column("Outcome")
 
-    for test in test_session_data.tally_tests:
+    for i, test in enumerate(test_session_data.tally_tests):
         name = Text(test_session_data.tally_tests[test]["node_id"], style="bold cyan")
+        if stylize_last_line:
+            name = name = (
+                Status(name) if i == len(test_session_data.tally_tests) - 1 else name
+            )
         duration = (
             Duration(str(test_session_data.tally_tests[test]["duration"]))
             if test_session_data.tally_tests[test]["duration"]
@@ -79,7 +76,9 @@ def generate_table() -> Table:
         if test_session_data.total_duration >= 60:
             table.caption = f"Test Session Duration: {human_time_duration(test_session_data.total_duration)}"
         else:
-            table.caption = f"Test Session Duration: {Duration(test_session_data.total_duration)}"
+            table.caption = (
+                f"Test Session Duration: {Duration(test_session_data.total_duration)}"
+            )
 
     return table
 
@@ -91,11 +90,12 @@ def main():
 
     while True:
         test_session_data = get_test_session_data()
-        with Live(generate_table(), refresh_per_second=4) as live:
+        with Live(generate_table(), refresh_per_second=6) as live:
             while not test_session_data.session_finished:
-                time.sleep(0.4)
+                time.sleep(0.3)
                 live.update(generate_table())
                 test_session_data = get_test_session_data()
+            live.update(generate_table(stylize_last_line=False))
 
         while True:
             test_session_data = get_test_session_data()

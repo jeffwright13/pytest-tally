@@ -10,7 +10,6 @@ from _pytest.reports import TestReport
 from _pytest.runner import CallInfo
 from count_timer import CountTimer
 from dataclasses_json import dataclass_json
-from pytest_tally.utils import cleanup_unserializable
 
 FILE = Path("/Users/jwr003/coding/pytest-tally/pytest_tally/data.json")
 
@@ -28,15 +27,17 @@ class TallyTest:
     final_outcome: str
     node_id: str
 
+
 NULL_TALLY_TEST = TallyTest(
-            collect=None,
-            setup=None,
-            call=None,
-            teardown=None,
-            timer=None,
-            final_outcome=None,
-            node_id=None,
-        )
+    collect=None,
+    setup=None,
+    call=None,
+    teardown=None,
+    timer=None,
+    final_outcome=None,
+    node_id=None,
+)
+
 
 @dataclass_json
 @dataclass
@@ -116,7 +117,7 @@ def process_reports(report: TestReport, item: Item) -> None:
         tally_test = item.session.config._tally_tests[item.nodeid]
     else:
         tally_test = NULL_TALLY_TEST
-        tally_test.node_id=item.nodeid
+        tally_test.node_id = item.nodeid
         tally_test.timer = CountTimer()
         tally_test.timer.start()
         item.session.config._tally_tests[item.nodeid] = tally_test
@@ -137,9 +138,11 @@ def process_reports(report: TestReport, item: Item) -> None:
 
 def finalize_test(item: Item) -> dict:
     tally_test = item.session.config._tally_tests[item.nodeid]
-    tally_test.final_outcome = tally_test.call.outcome.capitalize() if hasattr(
-        tally_test.call, "outcome"
-    ) else "Error"
+    tally_test.final_outcome = (
+        tally_test.call.outcome.capitalize()
+        if hasattr(tally_test.call, "outcome")
+        else "Error"
+    )
     for report in [
         tally_test.collect,
         tally_test.setup,
@@ -164,6 +167,7 @@ def finalize_test(item: Item) -> dict:
         "duration": tally_test.timer.elapsed,
     }
 
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
     if not check_tally_enabled(item.session.config):
@@ -182,13 +186,15 @@ def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
         # when each test has reached its end (indicated by 'when' = teardown)
         # we have enough info to finalize outcome & duration
         process_reports(report, item)
+
+        item.session.test_session_data.total_duration = (
+            item.session.config._tally_timer.elapsed
+        )
+
         if report.when == "teardown":
             finalized_info = finalize_test(item)
             item.session.test_session_data.tally_tests[item.name] = finalized_info
-            item.session.test_session_data.total_duration = (
-                item.session.config._tally_timer.elapsed
-            )
-            # item.session.config._tally_timer.pause()
+
         with open(FILE, "w") as file:
             jdata = item.session.test_session_data.to_json()
             json.dump(jdata, file)

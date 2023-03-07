@@ -26,7 +26,7 @@ setup(
     py_modules=["pytest_tally"],
     python_requires=">=3.8",
     install_requires=[
-        # "blessed==1.19.1",
+        "blessed==1.20.0",
         "count-timer==0.3.8",
         "dataclasses-json==0.5.7",
         "pytest>=6.2.5",
@@ -48,7 +48,7 @@ setup(
         "Operating System :: OS Independent",
         "License :: OSI Approved :: MIT License",
     ],
-    keywords="pytest pytest-plugin testing tui textual html",
+    keywords="pytest pytest-plugin testing tui rich blessed",
     entry_points={
         "pytest11": ["pytest_tally = pytest_tally.plugin"],
         "console_scripts": [
