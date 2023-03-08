@@ -1,6 +1,6 @@
 # pytest-tally
 
-### A Pytest plugin to generate realtime summary stats, and display them in-console using a text-based dashboard. ###
+### A Pytest plugin that displays test run progress in-console. ###
 
 ![2023-03-05 17 48 08](https://user-images.githubusercontent.com/4308435/222996549-af233252-6a1c-46a2-84b2-8c0863e44968.gif)
 
