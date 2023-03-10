@@ -2,7 +2,8 @@
 
 ### A Pytest plugin that displays test run progress in-console. ###
 
-![2023-03-05 17 48 08](https://user-images.githubusercontent.com/4308435/222996549-af233252-6a1c-46a2-84b2-8c0863e44968.gif)
+![2023-03-10 14 16 57](https://user-images.githubusercontent.com/4308435/224430560-04f9de9e-2446-4a78-afb6-5f5f4bbfb05c.gif)
+
 
 ## Why?
 I run a lot of long-duration test campaigns that generate copious amounts of console output. I usually monitor their progress by periodically checking the terminal to see if anything has failed so far. This usually means scrolling back in the console, looking for that telltale FAILED indication. It can be a bit of a pain hunting for that information!
