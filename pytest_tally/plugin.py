@@ -1,4 +1,5 @@
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -6,10 +7,15 @@ import pytest
 from _pytest.config import Config, ExitCode
 from _pytest.main import Session
 from _pytest.nodes import Item
-from _pytest.reports import TestReport
 from _pytest.runner import CallInfo
 from count_timer import CountTimer
 from dataclasses_json import dataclass_json
+
+from pytest_tally.utils import (
+    lastline_matcher,
+    test_session_starts_section_matcher,
+    test_session_starts_test_matcher,
+)
 
 FILE = Path("/Users/jwr003/coding/pytest-tally/pytest_tally/data.json")
 
@@ -19,47 +25,22 @@ FILE = Path("/Users/jwr003/coding/pytest-tally/pytest_tally/data.json")
 class TallyTest:
     """Dataclass to hold pertinent info for each Pytest test executed"""
 
-    collect: TestReport
-    setup: TestReport
-    call: TestReport
-    teardown: TestReport
-    timer: CountTimer
-    final_outcome: str
     node_id: str
-
-
-NULL_TALLY_TEST = TallyTest(
-    collect=None,
-    setup=None,
-    call=None,
-    teardown=None,
-    timer=None,
-    final_outcome=None,
-    node_id=None,
-)
+    test_duration: float
+    final_outcome: str
+    timer: CountTimer
 
 
 @dataclass_json
 @dataclass
-class TallyTestSessionData:
+class TallySessionData:
     """Dataclass to hold pertinent info for the entire Pytest test session"""
 
-    num_collected_tests: int
-    start_time: str
-    end_time: str
-    total_duration: float
-    tally_tests: dict
     session_finished: bool
-
-
-NULL_TALLY_TEST_SESSION_DATA = TallyTestSessionData(
-    num_collected_tests=0,
-    start_time="",
-    end_time="",
-    total_duration=0,
-    tally_tests={},
-    session_finished=False,
-)
+    session_duration: float
+    outcome_next: bool
+    timer: CountTimer
+    tally_tests: dict
 
 
 def check_tally_enabled(config: Config) -> bool:
@@ -73,99 +54,126 @@ def pytest_addoption(parser) -> None:
         action="store_true",
         help="Enable the pytest-tally plugin. Writes live summary results data to a JSON file for comsumption by a dashboard client.",
     )
+    group.addoption(
+        "--tally-file",
+        "--tf",
+        help="Specify a non-default name for the output file. Default is 'data.json'.",
+    )
 
 
 def pytest_cmdline_main(config: Config) -> None:
     if not check_tally_enabled(config):
         return
 
-    config._tally_timer = CountTimer()
-    config._tally_timer.start()
+    config.option.verbose = 1
+    config.option.reportchars = "AR" if hasattr(config.option, "reruns") else "A"
 
-    # A dictionary of TallyTests using nodeid as keys
-    # Required to determine per-test durations and outcomes
-    config._tally_tests = {}
+    config._tally_session_timer = CountTimer()
+    config._tally_session_timer.start()
+    config._tally_session_data = TallySessionData(
+        session_finished=False,
+        session_duration=0,
+        outcome_next=False,
+        timer=config._tally_session_timer,
+        tally_tests={},
+    )
+
+    if not hasattr(config, "_tally_session_current_section"):
+        config._tally_session_current_section = None
+
+    if not hasattr(config, "_tally_session_test_outcome_next"):
+        config._tally_session_test_outcome_next = False
 
 
 def pytest_sessionstart(session: Session) -> None:
     if not check_tally_enabled(session.config):
         return
 
-    session.test_session_data = NULL_TALLY_TEST_SESSION_DATA
+    session.config._tally_session_data.timer.start()
+
+    session_data = json.dumps(
+        session.config._tally_session_data, default=lambda x: x.__dict__
+    )
     with open(FILE, "w", encoding="utf-8") as file:
-        j = session.test_session_data.to_json()
-        json.dump(j, file)
+        json.dump(session_data, file)
 
 
 def pytest_collection_finish(session: Session) -> None:
     if not check_tally_enabled(session.config):
         return
 
-    session.test_session_data = NULL_TALLY_TEST_SESSION_DATA
-    with open(FILE, "w") as file:
-        j = session.test_session_data.to_json()
-        json.dump(j, file)
-
-    session.test_session_data.num_collected_tests = len(session.items)
-    with open(FILE, "w") as file:
-        j = session.test_session_data.to_json()
-        json.dump(j, file)
-
-
-def process_reports(report: TestReport, item: Item) -> None:
-    if report.nodeid in item.session.config._tally_tests:
-        tally_test = item.session.config._tally_tests[item.nodeid]
-    else:
-        tally_test = NULL_TALLY_TEST
-        tally_test.node_id = item.nodeid
-        tally_test.timer = CountTimer()
-        tally_test.timer.start()
-        item.session.config._tally_tests[item.nodeid] = tally_test
-
-    if report.when == "collect":
-        tally_test.collect = report
-    elif report.when == "setup":
-        tally_test.setup = report
-    elif report.when == "call":
-        tally_test.call = report
-        tally_test.call.outcome = report.outcome
-    elif report.when == "teardown":
-        tally_test.teardown = report
-        tally_test.timer.pause()
-    else:
-        raise RuntimeError(f"Unknown report 'when' value: {report.when}")
-
-
-def finalize_test(item: Item) -> dict:
-    tally_test = item.session.config._tally_tests[item.nodeid]
-    tally_test.final_outcome = (
-        tally_test.call.outcome.capitalize()
-        if hasattr(tally_test.call, "outcome")
-        else "Error"
+    session_data = json.dumps(
+        session.config._tally_session_data, default=lambda x: x.__dict__
     )
-    for report in [
-        tally_test.collect,
-        tally_test.setup,
-        tally_test.teardown,
-    ]:
-        if hasattr(report, "when") and report.when == "failed":
-            tally_test.final_outcome = "Error"
-    for report in [
-        tally_test.collect,
-        tally_test.setup,
-        tally_test.call,
-        tally_test.teardown,
-    ]:
-        if hasattr(report, "wasxfail"):
-            if report.outcome in ["passed", "failed"]:
-                tally_test.final_outcome = "XPassed"
-            if report.outcome == "skipped":
-                tally_test.final_outcome = "XFailed"
-    return {
-        "node_id": tally_test.node_id,
-        "final_outcome": tally_test.final_outcome,
-        "duration": tally_test.timer.elapsed,
-    }
+    with open(FILE, "w", encoding="utf-8") as file:
+        json.dump(session_data, file)
+
+
+def pytest_runtest_setup(item: Item):
+    test = TallyTest(
+        node_id=item.nodeid, test_duration=0.0, timer=CountTimer(), final_outcome=None
+    )
+    test.timer.start()
+    item.config._tally_session_data.tally_tests[item.nodeid] = test
+    print()
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_configure(config: Config) -> None:
+    if not check_tally_enabled(config):
+        return
+
+    tr = config.pluginmanager.getplugin("terminalreporter")
+    if tr is not None:
+        oldwrite = tr._tw.write
+
+        def tee_write(s, **kwargs):
+            if re.search(test_session_starts_section_matcher, s):
+                config._tally_session_current_section = "test_session_starts"
+
+            if re.search(lastline_matcher, s):
+                config._tally_session_current_section = "lastline"
+
+            if config._tally_session_current_section == "test_session_starts":
+                if config._tally_session_test_outcome_next:
+                    outcome = s.strip()
+
+                    if not config._tally_session_data.tally_tests.get(
+                        config._tally_session_current_fqtn
+                    ):
+                        tally_test = TallyTest(
+                            node_id=config._tally_session_current_fqtn,
+                            test_duration=0.0,
+                            timer=CountTimer(),
+                            final_outcome=None,
+                        )
+                        tally_test.timer.start()
+                        config._tally_session_data.tally_tests[
+                            config._tally_session_current_fqtn
+                        ] = tally_test
+
+                    tally_test = config._tally_session_data.tally_tests[
+                        config._tally_session_current_fqtn
+                    ]
+                    tally_test.final_outcome = outcome
+                    tally_test.timer.pause()
+                    tally_test.test_duration = tally_test.timer.elapsed
+                    config._tally_session_data.tally_tests[
+                        config._tally_session_current_fqtn
+                    ] = tally_test
+                    config._tally_session_test_outcome_next = False
+
+                match = re.search(test_session_starts_test_matcher, s, re.MULTILINE)
+                if match:
+                    node_id = re.search(
+                        test_session_starts_test_matcher, s, re.MULTILINE
+                    )[1].rstrip()
+                    config._tally_session_current_fqtn = node_id
+                    config._tally_session_test_outcome_next = True
+
+            oldwrite(s, **kwargs)
+
+        tr._tw.write = tee_write
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -174,40 +182,38 @@ def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
         yield
 
     else:
-        # Determining the final outcome of a Pytest test is a bitch. What we are doing
-        # here is gathering all TestReport items for a given test (uniquely identified
-        # by nodeid), and assigning the final outcome based on some information gleaned
-        # from Pytests's source code (e.g. reports.py), word-of-mouth (BeyondEvil), etc.
-        # This does not take into account reruns. Fuck it, we do the best we can.
         r = yield
         report = r.get_result()
 
-        # Push individual reports onto a dictionary of TallyTest objects, then
-        # when each test has reached its end (indicated by 'when' = teardown)
-        # we have enough info to finalize outcome & duration
-        process_reports(report, item)
-
-        item.session.test_session_data.total_duration = (
-            item.session.config._tally_timer.elapsed
-        )
-
         if report.when == "teardown":
-            finalized_info = finalize_test(item)
-            item.session.test_session_data.tally_tests[item.name] = finalized_info
+            try:
+                item.session.config._tally_session_data.tally_tests[
+                    item.nodeid
+                ].timer.pause()
+            except:
+                print()
 
-        with open(FILE, "w") as file:
-            jdata = item.session.test_session_data.to_json()
-            json.dump(jdata, file)
+        session_data = json.dumps(
+            item.session.config._tally_session_data,
+            default=lambda x: x.__dict__,
+        )
+        with open(FILE, "w", encoding="utf-8") as file:
+            json.dump(session_data, file)
 
 
 def pytest_sessionfinish(session: Session, exitstatus: ExitCode) -> None:
     if not check_tally_enabled(session.config):
         return
 
-    session.config._tally_timer.pause()
+    session.config._tally_session_timer.pause()
+    session.config._tally_session_data.session_duration = (
+        session.config._tally_session_timer.elapsed
+    )
+    session.config._tally_session_data.session_finished = True
+    del session.config._tally_session_data.outcome_next
 
-    session.test_session_data.total_duration = session.config._tally_timer.elapsed
-    session.test_session_data.session_finished = True
-    with open(FILE, "w") as file:
-        j = session.test_session_data.to_json()
-        json.dump(j, file)
+    session_data = json.dumps(
+        session.config._tally_session_data, default=lambda x: x.__dict__
+    )
+    with open(FILE, "w", encoding="utf-8") as file:
+        json.dump(session_data, file)
