@@ -1,3 +1,4 @@
+import argparse
 import json
 import platform
 import subprocess
@@ -16,7 +17,7 @@ class Duration(Quantity):
     prec = 2
 
 
-from pytest_tally.plugin import FILE, EFILE, TallySessionData
+from pytest_tally.plugin import FILE, TallySessionData
 from pytest_tally.utils import human_time_duration
 
 
@@ -38,7 +39,9 @@ def get_test_session_data() -> TallySessionData:
             j = json.load(jfile)
             return TallySessionData(**j)
         except json.decoder.JSONDecodeError:
-            return TallySessionData(session_finished=False, session_duration=0.0, timer=None, tally_tests={})
+            return TallySessionData(
+                session_finished=False, session_duration=0.0, timer=None, tally_tests={}
+            )
 
 
 def generate_table(stylize_last_line: bool = True) -> Table:
@@ -52,14 +55,14 @@ def generate_table(stylize_last_line: bool = True) -> Table:
 
     for i, test in enumerate(test_session_data.tally_tests):
         try:
-            name = Text(test_session_data.tally_tests[test]["node_id"], style="bold cyan")
+            name = Text(
+                test_session_data.tally_tests[test]["node_id"], style="bold cyan"
+            )
         except AttributeError:
             continue
 
         if stylize_last_line:
-            name = (
-                Status(name) if i == len(test_session_data.tally_tests) - 1 else name
-            )
+            name = Status(name) if i == len(test_session_data.tally_tests) - 1 else name
 
         duration = (
             Duration(str(test_session_data.tally_tests[test]["test_duration"]))
@@ -83,15 +86,18 @@ def generate_table(stylize_last_line: bool = True) -> Table:
         elif "xfail" in outcome.plain.lower():
             outcome.stylize("red")
         elif "xpass" in outcome.plain.lower():
-            outcome.stylize("bold cyan")
+            outcome.stylize("bold yellow")
         elif "rerun" in outcome.plain.lower():
             outcome.stylize("yellow ")
         else:
-            outcome.stylize("blue")
+            outcome.stylize("bold blue")
 
         table.add_row(name, render(duration, "s"), outcome)
 
-        if hasattr(test_session_data, "session_duration") and test_session_data.session_duration >= 60:
+        if (
+            hasattr(test_session_data, "session_duration")
+            and test_session_data.session_duration >= 60
+        ):
             table.caption = f"Test Session Duration: {human_time_duration(test_session_data.session_duration)}"
         else:
             table.caption = (
@@ -102,7 +108,18 @@ def generate_table(stylize_last_line: bool = True) -> Table:
 
 
 def main():
-    clear_file()
+    parser = argparse.ArgumentParser(prog="tally")
+    parser.add_argument(
+        "-n",
+        action="store_true",
+        default=False,
+        help="do not delete existing data when starting a new run",
+    )
+    args = parser.parse_args().__dict__
+
+    if not args["n"]:
+        clear_file()
+
     term = Terminal()
     clear_terminal()
 

@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,8 +18,7 @@ from pytest_tally.utils import (
     test_session_starts_test_matcher,
 )
 
-FILE = Path("/Users/jwr003/coding/pytest-tally/pytest_tally/data.json")
-EFILE = Path("/Users/jwr003/coding/pytest-tally/pytest_tally/data_empty.json")
+FILE = Path(os.getcwd()) / "data.json"
 
 
 @dataclass_json
@@ -53,11 +53,6 @@ def pytest_addoption(parser) -> None:
         "--tally",
         action="store_true",
         help="Enable the pytest-tally plugin. Writes live summary results data to a JSON file for comsumption by a dashboard client.",
-    )
-    group.addoption(
-        "--tally-file",
-        "--tf",
-        help="Specify a non-default name for the output file. Default is 'data.json'.",
     )
 
 
