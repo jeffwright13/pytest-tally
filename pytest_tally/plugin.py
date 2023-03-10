@@ -18,6 +18,7 @@ from pytest_tally.utils import (
 )
 
 FILE = Path("/Users/jwr003/coding/pytest-tally/pytest_tally/data.json")
+EFILE = Path("/Users/jwr003/coding/pytest-tally/pytest_tally/data_empty.json")
 
 
 @dataclass_json
@@ -38,7 +39,6 @@ class TallySessionData:
 
     session_finished: bool
     session_duration: float
-    outcome_next: bool
     timer: CountTimer
     tally_tests: dict
 
@@ -73,7 +73,6 @@ def pytest_cmdline_main(config: Config) -> None:
     config._tally_session_data = TallySessionData(
         session_finished=False,
         session_duration=0,
-        outcome_next=False,
         timer=config._tally_session_timer,
         tally_tests={},
     )
@@ -95,7 +94,7 @@ def pytest_sessionstart(session: Session) -> None:
         session.config._tally_session_data, default=lambda x: x.__dict__
     )
     with open(FILE, "w", encoding="utf-8") as file:
-        json.dump(session_data, file)
+        json.dump(json.loads(session_data), file)
 
 
 def pytest_collection_finish(session: Session) -> None:
@@ -106,7 +105,7 @@ def pytest_collection_finish(session: Session) -> None:
         session.config._tally_session_data, default=lambda x: x.__dict__
     )
     with open(FILE, "w", encoding="utf-8") as file:
-        json.dump(session_data, file)
+        json.dump(json.loads(session_data), file)
 
 
 def pytest_runtest_setup(item: Item):
@@ -198,7 +197,7 @@ def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
             default=lambda x: x.__dict__,
         )
         with open(FILE, "w", encoding="utf-8") as file:
-            json.dump(session_data, file)
+            json.dump(json.loads(session_data), file)
 
 
 def pytest_sessionfinish(session: Session, exitstatus: ExitCode) -> None:
@@ -210,10 +209,9 @@ def pytest_sessionfinish(session: Session, exitstatus: ExitCode) -> None:
         session.config._tally_session_timer.elapsed
     )
     session.config._tally_session_data.session_finished = True
-    del session.config._tally_session_data.outcome_next
 
     session_data = json.dumps(
         session.config._tally_session_data, default=lambda x: x.__dict__
     )
     with open(FILE, "w", encoding="utf-8") as file:
-        json.dump(session_data, file)
+        json.dump(json.loads(session_data), file)
