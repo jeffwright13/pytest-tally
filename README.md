@@ -14,5 +14,7 @@ This plugin writes up-to-date summary statistics for each test, as it executes, 
 
 ## Use ##
 - Run Pytest like you normally would, but specify the `--tally` option: `pytest --tally`
-- Open another terminal session, activate your venv, and type in `tally`
-- Ctrl-C exits the client (for now - improvements coming)
+- Open another terminal session, activate your venv, and type in `tally` to start the client.
+    - Ctrl-C exits the client (for now - improvements coming)
+    - '-h' flag generates help
+    - '-n' flag disables deleteion of previous data when starting client

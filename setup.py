@@ -14,7 +14,7 @@ def read(fname):
 
 setup(
     name="pytest-tally",
-    version="0.1.2",
+    version="1.0.0",
     author="Jeff Wright",
     author_email="jeff.washcloth@gmail.com",
     license="MIT",
