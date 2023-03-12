@@ -61,9 +61,6 @@ def generate_table(stylize_last_line: bool = True) -> Table:
         except AttributeError:
             continue
 
-        if stylize_last_line:
-            name = Status(name) if i == len(test_session_data.tally_tests) - 1 else name
-
         duration = (
             Duration(str(test_session_data.tally_tests[test]["test_duration"]))
             if test_session_data.tally_tests[test]["test_duration"]
@@ -92,16 +89,20 @@ def generate_table(stylize_last_line: bool = True) -> Table:
         else:
             outcome.stylize("bold blue")
 
-        table.add_row(name, render(duration, "s"), outcome)
+        if stylize_last_line:
+            name = Status(name) if i == len(test_session_data.tally_tests) - 1 else name
+            table.add_row(name, Status(""), outcome) if i == len(test_session_data.tally_tests) - 1 else table.add_row(name, render(duration, "s"), outcome)
+        else:
+            table.add_row(name, render(duration, "s"), outcome)
 
         if (
             hasattr(test_session_data, "session_duration")
             and test_session_data.session_duration >= 60
         ):
-            table.caption = f"Test Session Duration: {human_time_duration(test_session_data.session_duration)}"
+            table.caption = Text(f"Test Session Duration: {human_time_duration(test_session_data.session_duration)}", style="bold")
         else:
-            table.caption = (
-                f"Test Session Duration: {Duration(test_session_data.session_duration)}"
+            table.caption = Text(
+                f"Test Session Duration: {Duration(test_session_data.session_duration)}", style="bold"
             )
 
     return table
@@ -111,14 +112,23 @@ def main():
     parser = argparse.ArgumentParser(prog="tally")
     parser.add_argument(
         "-n",
+        "--no-clear",
         action="store_true",
         default=False,
-        help="do not delete existing data when starting a new run",
+        help="do not clear existing data when starting a new run (default: False)",
     )
+    # parser.add_argument(
+    #     "-r",
+    #     "--rows",
+    #     action="store",
+    #     default=0,
+    #     help="number of rows to display (default: 0, no limit)",
+    # )
     args = parser.parse_args().__dict__
+    print(f"args: {args}")
 
-    if not args["n"]:
-        clear_file()
+    # if not args["n"]:
+    #     clear_file()
 
     term = Terminal()
     clear_terminal()
@@ -138,7 +148,7 @@ def main():
                 break
             time.sleep(0.25)
 
-        clear_terminal()
+        # clear_terminal()
 
 
 if __name__ == "__main__":

@@ -104,6 +104,8 @@ def pytest_collection_finish(session: Session) -> None:
 
 
 def pytest_runtest_setup(item: Item):
+    if not check_tally_enabled(item.config):
+        return
     test = TallyTest(
         node_id=item.nodeid, test_duration=0.0, timer=CountTimer(), final_outcome=None
     )
@@ -164,6 +166,10 @@ def pytest_configure(config: Config) -> None:
                     )[1].rstrip()
                     config._tally_session_current_fqtn = node_id
                     config._tally_session_test_outcome_next = True
+
+            config._tally_session_data.session_duration = (
+                config._tally_session_timer.elapsed
+            )
 
             oldwrite(s, **kwargs)
 
