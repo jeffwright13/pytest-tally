@@ -1,6 +1,5 @@
 blessed
 count-timer
-dataclasses-json
 pytest
 quantiphy
 rich

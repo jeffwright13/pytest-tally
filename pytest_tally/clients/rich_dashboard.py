@@ -17,7 +17,7 @@ class Duration(Quantity):
     prec = 2
 
 
-from pytest_tally.plugin import FILE, TallySessionData
+from pytest_tally.plugin import FILE, TallySession
 from pytest_tally.utils import human_time_duration
 
 
@@ -33,14 +33,14 @@ def clear_terminal() -> None:
         print("\033c", end="")
 
 
-def get_test_session_data() -> TallySessionData:
+def get_test_session_data() -> TallySession:
     with open(FILE, "r") as jfile:
         try:
             j = json.load(jfile)
-            return TallySessionData(**j)
+            return TallySession(**j, config=None)
         except json.decoder.JSONDecodeError:
-            return TallySessionData(
-                session_finished=False, session_duration=0.0, timer=None, tally_tests={}
+            return TallySession(
+                session_finished=False, session_duration=0.0, timer=None, tally_tests={}, config=None
             )
 
 
@@ -68,8 +68,8 @@ def generate_table(stylize_last_line: bool = True) -> Table:
         )
 
         outcome = (
-            Text(test_session_data.tally_tests[test]["final_outcome"])
-            if test_session_data.tally_tests[test]["final_outcome"]
+            Text(test_session_data.tally_tests[test]["test_outcome"])
+            if test_session_data.tally_tests[test]["test_outcome"]
             else Text("---")
         )
         if "passed" in outcome.plain.lower():
@@ -117,18 +117,18 @@ def main():
         default=False,
         help="do not clear existing data when starting a new run (default: False)",
     )
-    # parser.add_argument(
-    #     "-r",
-    #     "--rows",
-    #     action="store",
-    #     default=0,
-    #     help="number of rows to display (default: 0, no limit)",
-    # )
+    parser.add_argument(
+        "-r",
+        "--rows",
+        action="store",
+        default=0,
+        help="number of rows to display (default: 0, no limit)",
+    )
     args = parser.parse_args().__dict__
     print(f"args: {args}")
 
-    # if not args["n"]:
-    #     clear_file()
+    if not args["no_clear"]:
+        clear_file()
 
     term = Terminal()
     clear_terminal()
