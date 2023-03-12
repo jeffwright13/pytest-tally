@@ -10,6 +10,7 @@ from rich.live import Live
 from rich.status import Status
 from rich.table import Table
 from rich.text import Text
+from rich.progress import track
 
 
 class Duration(Quantity):
@@ -44,7 +45,7 @@ def get_test_session_data() -> TallySession:
             )
 
 
-def generate_table(stylize_last_line: bool = True) -> Table:
+def generate_table(max_rows: int = 0, stylize_last_line: bool = True) -> Table:
     test_session_data = get_test_session_data()
 
     table = Table(highlight=True)
@@ -53,25 +54,29 @@ def generate_table(stylize_last_line: bool = True) -> Table:
         table.add_column("Duration")
         table.add_column("Outcome")
 
-    for i, test in enumerate(test_session_data.tally_tests):
+    num_rows = len(test_session_data.tally_tests) if max_rows == 0 else max_rows
+    tally_tests = list(test_session_data.tally_tests.values())[-num_rows:]
+
+    for i, test in enumerate(tally_tests):
         try:
             name = Text(
-                test_session_data.tally_tests[test]["node_id"], style="bold cyan"
+                test["node_id"], style="bold cyan"
             )
         except AttributeError:
             continue
 
         duration = (
-            Duration(str(test_session_data.tally_tests[test]["test_duration"]))
-            if test_session_data.tally_tests[test]["test_duration"]
+            Duration(str(test["test_duration"]))
+            if test["test_duration"]
             else 0.0
         )
 
         outcome = (
-            Text(test_session_data.tally_tests[test]["test_outcome"])
-            if test_session_data.tally_tests[test]["test_outcome"]
+            Text(test["test_outcome"])
+            if test["test_outcome"]
             else Text("---")
         )
+
         if "passed" in outcome.plain.lower():
             outcome.stylize("green")
         elif "failed" in outcome.plain.lower():
@@ -89,9 +94,10 @@ def generate_table(stylize_last_line: bool = True) -> Table:
         else:
             outcome.stylize("bold blue")
 
+
         if stylize_last_line:
-            name = Status(name) if i == len(test_session_data.tally_tests) - 1 else name
-            table.add_row(name, Status(""), outcome) if i == len(test_session_data.tally_tests) - 1 else table.add_row(name, render(duration, "s"), outcome)
+            name = Status(name) if i == len(tally_tests) - 1 else name
+            table.add_row(name, Status(""), outcome) if i == len(tally_tests) - 1 else table.add_row(name, render(duration, "s"), outcome)
         else:
             table.add_row(name, render(duration, "s"), outcome)
 
@@ -129,26 +135,24 @@ def main():
 
     if not args["no_clear"]:
         clear_file()
-
+    num_rows = int(args["rows"]) if args["rows"] else 0
     term = Terminal()
     clear_terminal()
 
     while True:
         test_session_data = get_test_session_data()
-        with Live(generate_table(), refresh_per_second=6) as live:
+        with Live(generate_table(num_rows), refresh_per_second=3) as live:
             while not test_session_data.session_finished:
-                time.sleep(0.3)
-                live.update(generate_table())
+                time.sleep(0.2)
+                live.update(generate_table(num_rows))
                 test_session_data = get_test_session_data()
-            live.update(generate_table(stylize_last_line=False))
+            live.update(generate_table(num_rows, stylize_last_line=False))
 
         while True:
             test_session_data = get_test_session_data()
             if not test_session_data.session_finished:
                 break
             time.sleep(0.25)
-
-        # clear_terminal()
 
 
 if __name__ == "__main__":
