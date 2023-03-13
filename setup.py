@@ -38,7 +38,7 @@ setup(
     include_package_data=True,
     classifiers=[
         "Framework :: Pytest",
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Testing",
         "Programming Language :: Python :: 3.8",
@@ -54,6 +54,7 @@ setup(
         "console_scripts": [
             "tally = pytest_tally.clients.rich_dashboard:main",
             "tally-rich = pytest_tally.clients.rich_dashboard:main",
+            "tally-textual = pytest_tally.clients.textual_dashboard:main",
         ],
     },
 )
