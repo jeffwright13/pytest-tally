@@ -7,10 +7,10 @@ import time
 from blessed import Terminal
 from quantiphy import Quantity, render
 from rich.live import Live
+from rich.progress import track
 from rich.status import Status
 from rich.table import Table
 from rich.text import Text
-from rich.progress import track
 
 
 class Duration(Quantity):
@@ -41,7 +41,11 @@ def get_test_session_data() -> TallySession:
             return TallySession(**j, config=None)
         except json.decoder.JSONDecodeError:
             return TallySession(
-                session_finished=False, session_duration=0.0, timer=None, tally_tests={}, config=None
+                session_finished=False,
+                session_duration=0.0,
+                timer=None,
+                tally_tests={},
+                config=None,
             )
 
 
@@ -59,23 +63,15 @@ def generate_table(max_rows: int = 0, stylize_last_line: bool = True) -> Table:
 
     for i, test in enumerate(tally_tests):
         try:
-            name = Text(
-                test["node_id"], style="bold cyan"
-            )
+            name = Text(test["node_id"], style="bold cyan")
         except AttributeError:
             continue
 
         duration = (
-            Duration(str(test["test_duration"]))
-            if test["test_duration"]
-            else 0.0
+            Duration(str(test["test_duration"])) if test["test_duration"] else 0.0
         )
 
-        outcome = (
-            Text(test["test_outcome"])
-            if test["test_outcome"]
-            else Text("---")
-        )
+        outcome = Text(test["test_outcome"]) if test["test_outcome"] else Text("---")
 
         if "passed" in outcome.plain.lower():
             outcome.stylize("green")
@@ -94,10 +90,11 @@ def generate_table(max_rows: int = 0, stylize_last_line: bool = True) -> Table:
         else:
             outcome.stylize("bold blue")
 
-
         if stylize_last_line:
             name = Status(name) if i == len(tally_tests) - 1 else name
-            table.add_row(name, Status(""), outcome) if i == len(tally_tests) - 1 else table.add_row(name, render(duration, "s"), outcome)
+            table.add_row(name, Status(""), outcome) if i == len(
+                tally_tests
+            ) - 1 else table.add_row(name, render(duration, "s"), outcome)
         else:
             table.add_row(name, render(duration, "s"), outcome)
 
@@ -105,10 +102,14 @@ def generate_table(max_rows: int = 0, stylize_last_line: bool = True) -> Table:
             hasattr(test_session_data, "session_duration")
             and test_session_data.session_duration >= 60
         ):
-            table.caption = Text(f"Test Session Duration: {human_time_duration(test_session_data.session_duration)}", style="bold")
+            table.caption = Text(
+                f"Test Session Duration: {human_time_duration(test_session_data.session_duration)}",
+                style="bold",
+            )
         else:
             table.caption = Text(
-                f"Test Session Duration: {Duration(test_session_data.session_duration)}", style="bold"
+                f"Test Session Duration: {Duration(test_session_data.session_duration)}",
+                style="bold",
             )
 
     return table
