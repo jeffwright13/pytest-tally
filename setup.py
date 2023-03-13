@@ -28,7 +28,6 @@ setup(
     install_requires=[
         "blessed==1.20.0",
         "count-timer==0.3.8",
-        "dataclasses-json==0.5.7",
         "pytest>=6.2.5",
         "quantiphy==2.19",
         "rich==13.3.2",

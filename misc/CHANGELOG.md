@@ -5,12 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project tries to adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] 2023-03-010
+## [1.0.0] 2023-03-12
 - Complete rewrite of outcome processing logic to definitively determine the outcome of a test.
-- Added support for CLI option '-n (do not delete existing data file).
+- Added support for CLI option '-n' (do not delete existing data file).
+- Added support for CLI option '-r' (max num rows to display on terminal).
 
 ## [0.1.2] 2023-03-07
-- Added spinner to lsat test in dashboard table.
+- Added spinner to last test in dashboard table.
 
 ## [0.1.1] 2023-03-06
 - Fixed Rich dashboard issue with not properly showing final outcome.

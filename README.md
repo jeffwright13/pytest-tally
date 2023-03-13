@@ -18,4 +18,5 @@ This plugin writes up-to-date summary statistics for each test, as it executes, 
 - Open another terminal session, activate your venv, and type in `tally` to start the client.
     - Ctrl-C exits the client (for now - improvements coming)
     - '-h' flag generates help
-    - '-n' flag disables deleteion of previous data when starting client
+    - '-n' flag disables deletion of previous data when starting client
+    - '-r' flag sets max number of rows to display on terminal
