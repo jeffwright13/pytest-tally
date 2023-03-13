@@ -1,7 +1,9 @@
+import asyncio
 import argparse
 import json
 import platform
 import subprocess
+import sys
 import time
 
 from blessed import Terminal
@@ -33,6 +35,26 @@ def clear_terminal() -> None:
     else:
         print("\033c", end="")
 
+def get_kb_input():
+    with term.cbreak():
+        key = term.inkey(timeout=0.01).lower()
+        if key:
+            if key == "q":
+                print(
+                    term.bold
+                    + term.magenta
+                    + term.move_x(0)
+                    + term.move_up
+                    + term.clear_eol
+                    + "Quitting..."
+                )
+                sys.exit()
+            # elif key == "r":
+            #     counter.reset(duration=float(duration))
+            #     counter.start()
+            # elif key == " ":
+            #     counter.pause() if counter.running else counter.resume()
+
 
 def get_test_session_data() -> TallySession:
     with open(FILE, "r") as jfile:
@@ -49,14 +71,31 @@ def get_test_session_data() -> TallySession:
             )
 
 
-def generate_table(max_rows: int = 0, stylize_last_line: bool = True) -> Table:
+def get_pytest_output() -> None:
     test_session_data = get_test_session_data()
+    with Live(table, refresh_per_second=3) as live:
+        while not test_session_data.session_finished:
+            time.sleep(0.2)
+            live.update(table)
+            test_session_data = get_test_session_data()
+        live.update(table)
 
+    while True:
+        test_session_data = get_test_session_data()
+        if not test_session_data.session_finished:
+            break
+        time.sleep(0.25)
+
+
+def init_table() -> Table:
     table = Table(highlight=True)
-    if not table.columns:
-        table.add_column("Test NodeId")
-        table.add_column("Duration")
-        table.add_column("Outcome")
+    table.add_column("Test NodeId")
+    table.add_column("Duration")
+    table.add_column("Outcome")
+
+
+def render_table(max_rows: int = 0, stylize_last_line: bool = True) -> Table:
+    test_session_data = get_test_session_data()
 
     num_rows = len(test_session_data.tally_tests) if max_rows == 0 else max_rows
     tally_tests = list(test_session_data.tally_tests.values())[-num_rows:]
@@ -115,7 +154,15 @@ def generate_table(max_rows: int = 0, stylize_last_line: bool = True) -> Table:
     return table
 
 
-def main():
+async def main():
+    global table
+    global term
+    global test_session_data
+
+    table = init_table()
+    term = Terminal()
+    test_session_data = get_test_session_data()
+
     parser = argparse.ArgumentParser(prog="tally")
     parser.add_argument(
         "-n",
@@ -132,29 +179,29 @@ def main():
         help="number of rows to display (default: 0, no limit)",
     )
     args = parser.parse_args().__dict__
-    print(f"args: {args}")
-
     if not args["no_clear"]:
         clear_file()
     num_rows = int(args["rows"]) if args["rows"] else 0
-    term = Terminal()
-    clear_terminal()
+
+
+    def _run_executor_get_pytest_output():
+        get_pytest_output()
+
+    def _run_executor_render_table():
+        render_table()
+
+    def _run_executor_get_kb_input():
+        get_kb_input()
 
     while True:
-        test_session_data = get_test_session_data()
-        with Live(generate_table(num_rows), refresh_per_second=3) as live:
-            while not test_session_data.session_finished:
-                time.sleep(0.2)
-                live.update(generate_table(num_rows))
-                test_session_data = get_test_session_data()
-            live.update(generate_table(num_rows, stylize_last_line=False))
+        await asyncio.get_event_loop().run_in_executor(None, get_pytest_output)
+        await asyncio.get_event_loop().run_in_executor(None, render_table)
+        await asyncio.get_event_loop().run_in_executor(None, get_kb_input)
 
-        while True:
-            test_session_data = get_test_session_data()
-            if not test_session_data.session_finished:
-                break
-            time.sleep(0.25)
+
+def async_main_entry():
+    asyncio.get_event_loop().run_until_complete(main())
 
 
 if __name__ == "__main__":
-    main()
+    async_main_entry()

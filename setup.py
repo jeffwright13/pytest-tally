@@ -52,7 +52,7 @@ setup(
     entry_points={
         "pytest11": ["pytest_tally = pytest_tally.plugin"],
         "console_scripts": [
-            "tally = pytest_tally.clients.rich_dashboard:main",
+            "tally = pytest_tally.clients.rich_dashboard:async_main_entry",
             "tally-rich = pytest_tally.clients.rich_dashboard:main",
         ],
     },
