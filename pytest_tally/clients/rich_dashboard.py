@@ -49,7 +49,7 @@ def get_test_session_data() -> TallySession:
             )
 
 
-def generate_table(max_rows: int = 0, stylize_last_line: bool = True) -> Table:
+def generate_table(max_rows: int = 0, width: int = 0, stylize_last_line: bool = True) -> Table:
     test_session_data = get_test_session_data()
 
     table = Table(highlight=True)
@@ -59,6 +59,8 @@ def generate_table(max_rows: int = 0, stylize_last_line: bool = True) -> Table:
         table.add_column("Outcome")
 
     num_rows = len(test_session_data.tally_tests) if max_rows == 0 else max_rows
+    if width:
+        table.width = width
     tally_tests = list(test_session_data.tally_tests.values())[-num_rows:]
 
     for i, test in enumerate(tally_tests):
@@ -116,38 +118,44 @@ def generate_table(max_rows: int = 0, stylize_last_line: bool = True) -> Table:
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="tally")
-    parser.add_argument(
-        "-n",
-        "--no-clear",
-        action="store_true",
-        default=False,
-        help="do not clear existing data when starting a new run (default: False)",
-    )
-    parser.add_argument(
-        "-r",
-        "--rows",
-        action="store",
-        default=0,
-        help="number of rows to display (default: 0, no limit)",
-    )
-    args = parser.parse_args().__dict__
-    print(f"args: {args}")
-
-    if not args["no_clear"]:
-        clear_file()
-    num_rows = int(args["rows"]) if args["rows"] else 0
     term = Terminal()
     clear_terminal()
 
+    parser = argparse.ArgumentParser(prog="tally")
+    parser.add_argument(
+        "-c",
+        action="store_true",
+        default=False,
+        help="[c]lear existing data when starting a new run (default: False)",
+    )
+    parser.add_argument(
+        "-f",
+        action="store_true",
+        default=False,
+        help="make all table rows [f]ixed-width (default: False)",
+    )
+    parser.add_argument(
+        "-r",
+        action="store",
+        default=0,
+        help="max number of [r]ows to display (default: no limit)",
+    )
+    args = parser.parse_args()
+    print(f"args: {args}")
+
+    if args.c:
+        clear_file()
+    num_rows = int(args.r) if args.r else 0
+    width = term.width if args.f else 0
+
     while True:
         test_session_data = get_test_session_data()
-        with Live(generate_table(num_rows), refresh_per_second=3) as live:
+        with Live(generate_table(num_rows, width), refresh_per_second=3) as live:
             while not test_session_data.session_finished:
                 time.sleep(0.2)
-                live.update(generate_table(num_rows))
+                live.update(generate_table(num_rows, width))
                 test_session_data = get_test_session_data()
-            live.update(generate_table(num_rows, stylize_last_line=False))
+            live.update(generate_table(num_rows, width, stylize_last_line=False))
 
         while True:
             test_session_data = get_test_session_data()
