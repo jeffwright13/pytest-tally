@@ -12,7 +12,7 @@ from _pytest.runner import CallInfo
 
 from pytest_tally.classes import TallyReport, TallySession, TallyTest
 
-FILE = Path(os.getcwd()) / "data.json"
+DEFAULT_FILE = Path(os.getcwd()) / "data.json"
 
 global_config = None
 
@@ -21,6 +21,15 @@ logger = logging.getLogger(__name__)
 
 def check_tally_enabled(config: Config) -> bool:
     return bool(config.option.tally) if hasattr(config.option, "tally") else False
+
+
+def get_data_file() -> Path:
+    global global_config
+    return (
+        Path(global_config.option.tally_file)
+        if hasattr(global_config.option, "tally_file")
+        else DEFAULT_FILE
+    )
 
 
 def pytest_addoption(parser) -> None:
@@ -36,7 +45,7 @@ def pytest_addoption(parser) -> None:
     group.addoption(
         "--tally-file",
         action="store",
-        default=f"{Path.cwd()} / data.json",
+        default=DEFAULT_FILE,
         help=(
             "Specify the file path to write the pytest-tally data to. Defaults to"
             " data.json in the current working directory."
@@ -62,6 +71,7 @@ def write_to_file(session: Session, filename: Path) -> None:
     global_config = session.config
 
     session_data = global_config._tally_session.to_json()
+    os.makedirs(filename.parent, exist_ok=True)
     with open(filename, "w", encoding="utf-8") as file:
         json.dump(session_data, file)
 
@@ -77,7 +87,7 @@ def pytest_sessionstart(session: Session) -> None:
     global_config._tally_session.session_duration = (
         global_config._tally_session.timer.elapsed
     )
-    write_to_file(session, FILE)
+    write_to_file(session, get_data_file())
 
 
 def pytest_collection_finish(session: Session) -> None:
@@ -87,7 +97,7 @@ def pytest_collection_finish(session: Session) -> None:
     global_config._tally_session.session_duration = (
         global_config._tally_session.timer.elapsed
     )
-    write_to_file(session, FILE)
+    write_to_file(session, get_data_file())
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -185,7 +195,7 @@ def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
         global_config._tally_session.session_duration = (
             global_config._tally_session.timer.elapsed
         )
-        write_to_file(item.session, FILE)
+        write_to_file(item.session, get_data_file())
 
 
 @pytest.hookimpl(
@@ -204,4 +214,4 @@ def pytest_sessionfinish(session: Session, exitstatus: ExitCode) -> None:
     )
     global_config._tally_session.session_finished = True
 
-    write_to_file(session, FILE)
+    write_to_file(session, get_data_file())

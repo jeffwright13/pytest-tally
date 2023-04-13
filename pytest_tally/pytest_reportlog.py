@@ -79,6 +79,7 @@ class ReportLogPlugin:
 
 
 def cleanup_unserializable(d: Dict[str, Any]) -> Dict[str, Any]:
+    # Credit to https://github.com/pytest-dev/pytest-reportlog
     """Return new dict with entries that are not json serializable by their str()."""
     result = {}
     for k, v in d.items():

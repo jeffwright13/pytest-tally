@@ -1,14 +1,14 @@
 import argparse
 import json
+import os
 import platform
 import subprocess
 import time
+from pathlib import Path
 
 from blessed import Terminal
-from pathlib import Path
 from quantiphy import Quantity, render
 from rich.live import Live
-from rich.progress import track
 from rich.status import Status
 from rich.table import Table
 from rich.text import Text
@@ -19,16 +19,13 @@ class Duration(Quantity):
     prec = 2
 
 
-from pytest_tally.plugin import TallySession
-from pytest_tally.utils import human_time_duration
-
-
-def clear_file(filename: Path) -> None:
-    with open(filename, "w") as jfile:
-        jfile.write("")
+from pytest_tally.plugin import DEFAULT_FILE, TallySession
+from pytest_tally.utils import clear_file, human_time_duration
 
 
 def clear_terminal() -> None:
+    _ = subprocess.call("clear" if os.name == "posix" else "cls")
+
     if platform.system() == "Windows":
         subprocess.Popen("cls", shell=True).communicate()
     else:
@@ -36,26 +33,32 @@ def clear_terminal() -> None:
 
 
 def get_test_session_data(filename: Path) -> TallySession:
-    with open(filename, "r") as jfile:
-        try:
+    os.makedirs(filename.parent, exist_ok=True)
+    try:
+        with open(filename, "r") as jfile:
             j = json.load(jfile)
             return TallySession(**j, config=None)
-        except json.decoder.JSONDecodeError:
-            return TallySession(
-                session_finished=False,
-                session_duration=0.0,
-                timer=None,
-                tally_tests={},
-                config=None,
-            )
+    except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
+        clear_file(filename)
+        return TallySession(
+            session_finished=False,
+            session_duration=0.0,
+            timer=None,
+            tally_tests={},
+            config=None,
+        )
+    except Exception as e:
+        raise e
 
 
-def generate_table(filename: Path, max_rows: int = 0, width: int = 0, stylize_last_line: bool = True) -> Table:
+def generate_table(
+    filename: Path, max_rows: int = 0, width: int = 0, stylize_last_line: bool = True
+) -> Table:
     test_session_data = get_test_session_data(filename)
 
     table = Table(highlight=True)
     if not table.columns:
-        table.add_column("Test NodeId")
+        table.add_column("Node::TestId")
         table.add_column("Duration")
         table.add_column("Outcome")
 
@@ -118,12 +121,32 @@ def generate_table(filename: Path, max_rows: int = 0, width: int = 0, stylize_la
     return table
 
 
-def client(filename: Path) -> None:
+def client(filename: Path, num_rows: int, width: int) -> None:
+    while True:
+        test_session_data = get_test_session_data(filename)
+        with Live(
+            generate_table(filename, num_rows, width), refresh_per_second=3
+        ) as live:
+            while not test_session_data.session_finished:
+                time.sleep(0.2)
+                live.update(generate_table(filename, num_rows, width))
+                test_session_data = get_test_session_data(filename)
+            live.update(
+                generate_table(filename, num_rows, width, stylize_last_line=False)
+            )
+
+        while True:
+            test_session_data = get_test_session_data(filename)
+            if not test_session_data.session_finished:
+                break
+            time.sleep(0.6)
+
+
+def main():
     term = Terminal()
-    clear_terminal()
 
     parser = argparse.ArgumentParser(prog="tally")
-    parser.add_argument('filename')
+    parser.add_argument("filename", nargs="?", help="path to data file")
     parser.add_argument(
         "-c",
         "--clear",
@@ -145,39 +168,17 @@ def client(filename: Path) -> None:
         default=0,
         help="max number of [r]ows to display (default: no limit)",
     )
+
     args = parser.parse_args()
-    print(f"args: {args}")
+    filename = Path(args.filename) if args.filename else Path(DEFAULT_FILE)
+    assert filename.suffix == ".json", "'filename', if specified, must end in '.json'"
 
     if args.clear:
         clear_file(filename)
     num_rows = int(args.rows) if args.rows else 0
     width = term.width if args.filename else 0
-
-    while True:
-        test_session_data = get_test_session_data(filename)
-        with Live(generate_table(filename, num_rows, width), refresh_per_second=3) as live:
-            while not test_session_data.session_finished:
-                time.sleep(0.2)
-                live.update(generate_table(filename, num_rows, width))
-                test_session_data = get_test_session_data(filename)
-            live.update(generate_table(filename, num_rows, width, stylize_last_line=False))
-
-        while True:
-            test_session_data = get_test_session_data(filename)
-            if not test_session_data.session_finished:
-                break
-            time.sleep(0.25)
-
-
-def main():
-    import sys
-    if len(sys.argv) > 1:
-        if sys.argv[1] in ["-h", "--help"]:
-            print("Usage: tally [filename]")
-            sys.exit(0)
-        arg1 = sys.argv[1] or "data.json"
-    assert arg1.endswith(".json"), "Must pass in a .json file name"
-    client(Path(arg1))
+    clear_terminal()
+    client(filename=filename, num_rows=num_rows, width=width)
 
 
 if __name__ == "__main__":
