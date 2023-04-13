@@ -13,10 +13,18 @@ This plugin writes up-to-date summary statistics for each test, as it executes, 
 ## Install ##
     pip install pytest-tally
 
-## Use ##
+## Usage ##
+    usage: tally [-h] [-c] [-f] [-r ROWS] [filename]
+
+    positional arguments:
+    filename              path to data file
+
+    options:
+    -h, --help            show this help message and exit
+    -c, --clear           [c]lear existing data when starting a new run (default: False)
+    -f, --fixed-width     make all table rows [f]ixed-width (default: False)
+    -r ROWS, --rows ROWS  max number of [r]ows to display (default: no limit)
+
 - Run Pytest like you normally would, but specify the `--tally` option: `pytest --tally`
 - Open another terminal session, activate your venv, and type in `tally` to start the client.
-    - Ctrl-C exits the client (for now - improvements coming)
-    - '-h' flag generates help
-    - '-n' flag disables deletion of previous data when starting client
-    - '-r' flag sets max number of rows to display on terminal
+- Ctrl-C exits the client (for now - improvements coming)
