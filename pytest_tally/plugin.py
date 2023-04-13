@@ -32,6 +32,15 @@ def pytest_addoption(parser) -> None:
             "Enable the pytest-tally plugin. Writes live summary results data to a JSON"
             " file for comsumption by a dashboard client."
         ),
+    ),
+    group.addoption(
+        "--tally-file",
+        action="store",
+        default=f"{Path.cwd()} / data.json",
+        help=(
+            "Specify the file path to write the pytest-tally data to. Defaults to"
+            " data.json in the current working directory."
+        ),
     )
 
 

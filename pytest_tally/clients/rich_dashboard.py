@@ -5,6 +5,7 @@ import subprocess
 import time
 
 from blessed import Terminal
+from pathlib import Path
 from quantiphy import Quantity, render
 from rich.live import Live
 from rich.progress import track
@@ -18,12 +19,12 @@ class Duration(Quantity):
     prec = 2
 
 
-from pytest_tally.plugin import FILE, TallySession
+from pytest_tally.plugin import TallySession
 from pytest_tally.utils import human_time_duration
 
 
-def clear_file() -> None:
-    with open(FILE, "w") as jfile:
+def clear_file(filename: Path) -> None:
+    with open(filename, "w") as jfile:
         jfile.write("")
 
 
@@ -34,8 +35,8 @@ def clear_terminal() -> None:
         print("\033c", end="")
 
 
-def get_test_session_data() -> TallySession:
-    with open(FILE, "r") as jfile:
+def get_test_session_data(filename: Path) -> TallySession:
+    with open(filename, "r") as jfile:
         try:
             j = json.load(jfile)
             return TallySession(**j, config=None)
@@ -49,8 +50,8 @@ def get_test_session_data() -> TallySession:
             )
 
 
-def generate_table(max_rows: int = 0, width: int = 0, stylize_last_line: bool = True) -> Table:
-    test_session_data = get_test_session_data()
+def generate_table(filename: Path, max_rows: int = 0, width: int = 0, stylize_last_line: bool = True) -> Table:
+    test_session_data = get_test_session_data(filename)
 
     table = Table(highlight=True)
     if not table.columns:
@@ -117,25 +118,29 @@ def generate_table(max_rows: int = 0, width: int = 0, stylize_last_line: bool = 
     return table
 
 
-def main():
+def client(filename: Path) -> None:
     term = Terminal()
     clear_terminal()
 
     parser = argparse.ArgumentParser(prog="tally")
+    parser.add_argument('filename')
     parser.add_argument(
         "-c",
+        "--clear",
         action="store_true",
         default=False,
         help="[c]lear existing data when starting a new run (default: False)",
     )
     parser.add_argument(
         "-f",
+        "--fixed-width",
         action="store_true",
         default=False,
         help="make all table rows [f]ixed-width (default: False)",
     )
     parser.add_argument(
         "-r",
+        "--rows",
         action="store",
         default=0,
         help="max number of [r]ows to display (default: no limit)",
@@ -143,25 +148,36 @@ def main():
     args = parser.parse_args()
     print(f"args: {args}")
 
-    if args.c:
-        clear_file()
-    num_rows = int(args.r) if args.r else 0
-    width = term.width if args.f else 0
+    if args.clear:
+        clear_file(filename)
+    num_rows = int(args.rows) if args.rows else 0
+    width = term.width if args.filename else 0
 
     while True:
-        test_session_data = get_test_session_data()
-        with Live(generate_table(num_rows, width), refresh_per_second=3) as live:
+        test_session_data = get_test_session_data(filename)
+        with Live(generate_table(filename, num_rows, width), refresh_per_second=3) as live:
             while not test_session_data.session_finished:
                 time.sleep(0.2)
-                live.update(generate_table(num_rows, width))
-                test_session_data = get_test_session_data()
-            live.update(generate_table(num_rows, width, stylize_last_line=False))
+                live.update(generate_table(filename, num_rows, width))
+                test_session_data = get_test_session_data(filename)
+            live.update(generate_table(filename, num_rows, width, stylize_last_line=False))
 
         while True:
-            test_session_data = get_test_session_data()
+            test_session_data = get_test_session_data(filename)
             if not test_session_data.session_finished:
                 break
             time.sleep(0.25)
+
+
+def main():
+    import sys
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ["-h", "--help"]:
+            print("Usage: tally [filename]")
+            sys.exit(0)
+        arg1 = sys.argv[1] or "data.json"
+    assert arg1.endswith(".json"), "Must pass in a .json file name"
+    client(Path(arg1))
 
 
 if __name__ == "__main__":
