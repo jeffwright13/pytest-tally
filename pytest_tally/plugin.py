@@ -1,6 +1,9 @@
 import json
 import logging
 import os
+import re
+from strip_ansi import strip_ansi
+
 from pathlib import Path
 
 import pytest
@@ -66,9 +69,13 @@ def pytest_cmdline_main(config: Config) -> None:
         )
 
 
-def write_to_file(session: Session, filename: Path) -> None:
+# def write_to_file(session.config: Session, filename: Path) -> None:
+#     global global_config
+#     global_config = session.config
+
+def write_to_file(config: Config, filename: Path) -> None:
     global global_config
-    global_config = session.config
+    global_config = config
 
     session_data = global_config._tally_session.to_json()
     os.makedirs(filename.parent, exist_ok=True)
@@ -87,7 +94,7 @@ def pytest_sessionstart(session: Session) -> None:
     global_config._tally_session.session_duration = (
         global_config._tally_session.timer.elapsed
     )
-    write_to_file(session, get_data_file())
+    write_to_file(session.config, get_data_file())
 
 
 def pytest_collection_finish(session: Session) -> None:
@@ -97,7 +104,7 @@ def pytest_collection_finish(session: Session) -> None:
     global_config._tally_session.session_duration = (
         global_config._tally_session.timer.elapsed
     )
-    write_to_file(session, get_data_file())
+    write_to_file(session.config, get_data_file())
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -163,6 +170,7 @@ def pytest_runtest_logreport(report: TestReport) -> None:
 
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
+    # uses pytest 'pastebin.py' source code for inspiration
     if not check_tally_enabled(config):
         return
 
@@ -174,6 +182,23 @@ def pytest_configure(config: Config) -> None:
             config=config,
         )
 
+    tr = config.pluginmanager.getplugin("terminalreporter")
+    if tr is not None:
+        oldwrite = tr._tw.write
+
+        def tee_write(s, **kwargs):
+            lastline_matcher = re.compile(r"^==.*in\s\d+.\d+s.*=+")
+            oldwrite(s, **kwargs)
+            match = re.search(lastline_matcher, s)
+            if match:
+                global_config._tally_session.lastline = strip_ansi(match.string).replace("=", "").strip()
+                write_to_file(global_config, get_data_file())
+        tr._tw.write = tee_write
+
+
+def pytest_unconfigure(config: Config) -> None:
+    tr = config.pluginmanager.getplugin("terminalreporter")
+    del tr._tw.__dict__["write"]
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
@@ -195,7 +220,7 @@ def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
         global_config._tally_session.session_duration = (
             global_config._tally_session.timer.elapsed
         )
-        write_to_file(item.session, get_data_file())
+        write_to_file(item.session.config, get_data_file())
 
 
 @pytest.hookimpl(
@@ -214,4 +239,4 @@ def pytest_sessionfinish(session: Session, exitstatus: ExitCode) -> None:
     )
     global_config._tally_session.session_finished = True
 
-    write_to_file(session, get_data_file())
+    write_to_file(session.config, get_data_file())

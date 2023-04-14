@@ -7,9 +7,13 @@ RELEASE_INSTRUCTIONS
     $ pyenv local <3.X.Y>
     $ python -m venv venv
     $ source venv/bin/activate
+    $ pip install pip-tools
+    $ pip-compile --no-emit-index-url requirements/requirements.in && pip-compile --no-emit-index-url requirements/requirements-dev.in
+    $ pip install -r requirements/requirements.txt
     $ pip install -e .
-    $ pytest --tally
-    $ tally-rich
+    IN SPLIT TERMINAL:
+    $ pytest --tally (R)
+    $ tally (L)
 
 - Install/upgrade build & release tools:
     $ pip install --upgrade setuptools wheel twine

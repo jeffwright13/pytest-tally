@@ -3,10 +3,6 @@ import re
 from pathlib import Path
 from typing import Any, Dict
 
-test_session_starts_section_matcher = re.compile(r"^==.*\stest session starts\s==+")
-test_session_starts_test_matcher = r"^(.*::.*)"
-lastline_matcher = re.compile(r"^==.*in\s\d+.\d+s.*=+")
-
 
 def clear_file(filename: Path) -> None:
     with open(filename, "w") as jfile:

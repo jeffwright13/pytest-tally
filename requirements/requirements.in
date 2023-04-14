@@ -1,6 +1,8 @@
+aioconsole
 blessed
 count-timer
 pytest
 quantiphy
 rich
 single-source
+strip-ansi

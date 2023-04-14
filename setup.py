@@ -14,7 +14,7 @@ def read(fname):
 
 setup(
     name="pytest-tally",
-    version="1.0.0",
+    version="1Refactored generate_table.1.0",
     author="Jeff Wright",
     author_email="jeff.washcloth@gmail.com",
     license="MIT",
@@ -53,6 +53,7 @@ setup(
         "console_scripts": [
             "tally = pytest_tally.clients.rich_dashboard:main",
             "tally-rich = pytest_tally.clients.rich_dashboard:main",
+            "tally-rich-asyncio = pytest_tally.clients.rich_dashboard:async_main_entry",
         ],
     },
 )

@@ -31,12 +31,14 @@ class TallySession:
         config: Config,
         session_finished: bool = False,
         session_duration: float = 0.0,
+        lastline: str = "",
         timer: TallyCountTimer = TallyCountTimer(),
         tally_tests: dict = {},
     ) -> None:
         self.session_finished = session_finished
         self.session_duration = session_duration
         self.timer = timer
+        self.lastline = ""
         self.tally_tests = tally_tests
         self.config = config
 
@@ -45,6 +47,7 @@ class TallySession:
             "session_finished": self.session_finished,
             "session_duration": self.session_duration,
             "timer": self.timer.to_json(),
+            "lastline": self.lastline,
             "tally_tests": {k: v.to_json() for k, v in self.tally_tests.items()},
         }
 

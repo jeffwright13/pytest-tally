@@ -11,7 +11,9 @@ I run a lot of long-duration test campaigns that generate copious amounts of con
 This plugin writes up-to-date summary statistics for each test, as it executes, to a file on disk. That file is then continually read by a small client that prints its results to terminal. That way I can split my screen and monitor both the raw console output from Pytest and the client's summary output. And suddenly life becaomes just a little bit brighter. :-)
 
 ## Install ##
-    pip install pytest-tally
+    For most usrs: `pip install pytest-tally`
+    For users who like to roll their own: `pip install -r requirements/requirements.txt && pip install pytest-tally`
+    For userss who want the edv dependencies: `pip install -r requirements/requirements-dev.txt && pip install pytest-tally`
 
 ## Usage ##
     usage: tally [-h] [-c] [-f] [-r ROWS] [filename]
