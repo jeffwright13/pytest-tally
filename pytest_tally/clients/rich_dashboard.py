@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import json
 import os
 import time
 from pathlib import Path
@@ -15,7 +14,8 @@ from rich.table import Table
 from rich.text import Text
 
 from pytest_tally.plugin import DEFAULT_FILE, TallySession
-from pytest_tally.utils import clear_file, human_time_duration
+from pytest_tally.utils import clear_file, human_time_duration, LocakbleJsonFileUtils
+
 
 class Duration(Quantity):
     units = "s"
@@ -23,13 +23,11 @@ class Duration(Quantity):
 
 
 def get_test_session_data(filename: Path) -> TallySession:
-    try:
-        with open(filename, "r") as jfile:
-            j = json.load(jfile)
-            return TallySession(**j, config=None)
-    except (FileNotFoundError, json.decoder.JSONDecodeError):
-        os.makedirs(filename.parent, exist_ok=True)
-        clear_file(filename)
+    lock_utils = LocakbleJsonFileUtils(file_path=filename)
+    j = lock_utils.read_json()
+    if j:
+        return TallySession(**j, config=None)
+    else:
         return TallySession(
             session_finished=False,
             session_duration=0.0,
@@ -38,8 +36,6 @@ def get_test_session_data(filename: Path) -> TallySession:
             tally_tests={},
             config=None,
         )
-    except Exception as e:
-        raise e
 
 
 def generate_table(
@@ -115,6 +111,7 @@ def kb_input():
 def table_render(filename: Path, max_rows: int, width: int) -> None:
     while True:
         test_session_data = get_test_session_data(filename)
+
         with Live(
             generate_table(filename, max_rows, width), vertical_overflow="visible"
         ) as live:
@@ -122,14 +119,13 @@ def table_render(filename: Path, max_rows: int, width: int) -> None:
                 time.sleep(0.2)
                 live.update(generate_table(filename, max_rows, width))
                 test_session_data = get_test_session_data(filename)
+
             live.update(
                 generate_table(filename, max_rows, width, stylize_last_line=False)
             )
 
         while True:
             test_session_data = get_test_session_data(filename)
-            if not test_session_data.session_finished:
-                break
             time.sleep(0.5)
             event.set()
 

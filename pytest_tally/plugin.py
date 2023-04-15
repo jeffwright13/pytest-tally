@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import re
@@ -14,8 +13,10 @@ from _pytest.reports import TestReport
 from _pytest.runner import CallInfo
 
 from pytest_tally.classes import TallyReport, TallySession, TallyTest
+from pytest_tally.utils import LocakbleJsonFileUtils
 
 DEFAULT_FILE = Path(os.getcwd()) / "data.json"
+FLUSH_TIME = 0.05
 
 global_config = None
 
@@ -69,19 +70,13 @@ def pytest_cmdline_main(config: Config) -> None:
         )
 
 
-# def write_to_file(session.config: Session, filename: Path) -> None:
-#     global global_config
-#     global_config = session.config
-
-def write_to_file(config: Config, filename: Path) -> None:
+def write_json_to_file(config: Config, filename: Path) -> None:
     global global_config
     global_config = config
 
     session_data = global_config._tally_session.to_json()
-    os.makedirs(filename.parent, exist_ok=True)
-    with open(filename, "w", encoding="utf-8") as file:
-        json.dump(session_data, file)
-
+    lock_utils = LocakbleJsonFileUtils(file_path=filename)
+    lock_utils.write_json(session_data)
 
 def pytest_sessionstart(session: Session) -> None:
     if not check_tally_enabled(session.config):
@@ -94,7 +89,7 @@ def pytest_sessionstart(session: Session) -> None:
     global_config._tally_session.session_duration = (
         global_config._tally_session.timer.elapsed
     )
-    write_to_file(session.config, get_data_file())
+    write_json_to_file(session.config, get_data_file())
 
 
 def pytest_collection_finish(session: Session) -> None:
@@ -104,7 +99,7 @@ def pytest_collection_finish(session: Session) -> None:
     global_config._tally_session.session_duration = (
         global_config._tally_session.timer.elapsed
     )
-    write_to_file(session.config, get_data_file())
+    write_json_to_file(session.config, get_data_file())
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -192,7 +187,7 @@ def pytest_configure(config: Config) -> None:
             match = re.search(lastline_matcher, s)
             if match:
                 global_config._tally_session.lastline = strip_ansi(match.string).replace("=", "").strip()
-                write_to_file(global_config, get_data_file())
+                write_json_to_file(global_config, get_data_file())
         tr._tw.write = tee_write
 
 
@@ -220,7 +215,7 @@ def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
         global_config._tally_session.session_duration = (
             global_config._tally_session.timer.elapsed
         )
-        write_to_file(item.session.config, get_data_file())
+        write_json_to_file(item.session.config, get_data_file())
 
 
 @pytest.hookimpl(
@@ -239,4 +234,4 @@ def pytest_sessionfinish(session: Session, exitstatus: ExitCode) -> None:
     )
     global_config._tally_session.session_finished = True
 
-    write_to_file(session.config, get_data_file())
+    write_json_to_file(session.config, get_data_file())

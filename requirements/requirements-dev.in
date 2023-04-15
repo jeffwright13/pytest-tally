@@ -2,7 +2,9 @@
 
 black
 faker
+flake8
 isort
+pre-commit
 pyflakes
 pytest-rerunfailures
 twine

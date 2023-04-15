@@ -14,7 +14,7 @@ def read(fname):
 
 setup(
     name="pytest-tally",
-    version="1Refactored generate_table.1.0",
+    version="1.1.1",
     author="Jeff Wright",
     author_email="jeff.washcloth@gmail.com",
     license="MIT",
