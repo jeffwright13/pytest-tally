@@ -2,7 +2,7 @@
 
 ### A Pytest plugin that displays test run progress in-console. ###
 
-![2023-03-10 14 16 57](https://user-images.githubusercontent.com/4308435/224430560-04f9de9e-2446-4a78-afb6-5f5f4bbfb05c.gif)
+![2023-04-14 18 34 48](https://user-images.githubusercontent.com/4308435/232174467-752c5d13-15e3-4c23-9430-1087050af0a4.gif)
 
 
 ## Why?
