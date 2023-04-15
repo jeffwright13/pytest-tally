@@ -193,7 +193,7 @@ def pytest_configure(config: Config) -> None:
 
 def pytest_unconfigure(config: Config) -> None:
     tr = config.pluginmanager.getplugin("terminalreporter")
-    del tr._tw.__dict__["write"]
+    # del tr._tw.__dict__["write"]
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
@@ -218,7 +218,7 @@ def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
         write_json_to_file(item.session.config, get_data_file())
 
 
-@pytest.hookimpl(
+@pytest.hookimpl(   # type: ignore
     tryfirst=True
 )  # run our hookimpl before pytest-html does its own postprocessing
 def pytest_sessionfinish(session: Session, exitstatus: ExitCode) -> None:
