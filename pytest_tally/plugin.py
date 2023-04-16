@@ -1,8 +1,7 @@
 import logging
 import os
 import re
-from strip_ansi import strip_ansi
-
+import time
 from pathlib import Path
 
 import pytest
@@ -11,6 +10,7 @@ from _pytest.main import Session
 from _pytest.nodes import Item
 from _pytest.reports import TestReport
 from _pytest.runner import CallInfo
+from strip_ansi import strip_ansi
 
 from pytest_tally.classes import TallyReport, TallySession, TallyTest
 from pytest_tally.utils import LocakbleJsonFileUtils
@@ -76,7 +76,17 @@ def write_json_to_file(config: Config, filename: Path) -> None:
 
     session_data = global_config._tally_session.to_json()
     lock_utils = LocakbleJsonFileUtils(file_path=filename)
-    lock_utils.write_json(session_data)
+    lock_utils.overwrite_json(session_data)
+
+
+def append_json_to_file(config: Config, filename: Path) -> None:
+    global global_config
+    global_config = config
+
+    session_data = global_config._tally_session.to_json()
+    lock_utils = LocakbleJsonFileUtils(file_path=filename)
+    lock_utils.append_json(session_data)
+
 
 def pytest_sessionstart(session: Session) -> None:
     if not check_tally_enabled(session.config):
@@ -96,6 +106,7 @@ def pytest_collection_finish(session: Session) -> None:
     if not check_tally_enabled(session.config):
         return
 
+    global_config._tally_session.session_num_tests = len(session.items)
     global_config._tally_session.session_duration = (
         global_config._tally_session.timer.elapsed
     )
@@ -186,14 +197,21 @@ def pytest_configure(config: Config) -> None:
             oldwrite(s, **kwargs)
             match = re.search(lastline_matcher, s)
             if match:
-                global_config._tally_session.lastline = strip_ansi(match.string).replace("=", "").strip()
+                global_config._tally_session.lastline_ansi = match.string.replace(
+                    "=", ""
+                ).strip()
+                global_config._tally_session.lastline = (
+                    strip_ansi(match.string).replace("=", "").strip()
+                )
                 write_json_to_file(global_config, get_data_file())
+
         tr._tw.write = tee_write
 
 
-def pytest_unconfigure(config: Config) -> None:
-    tr = config.pluginmanager.getplugin("terminalreporter")
-    # del tr._tw.__dict__["write"]
+# def pytest_unconfigure(config: Config) -> None:
+#     tr = config.pluginmanager.getplugin("terminalreporter")
+# del tr._tw.__dict__["write"]
+
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
@@ -218,7 +236,7 @@ def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
         write_json_to_file(item.session.config, get_data_file())
 
 
-@pytest.hookimpl(   # type: ignore
+@pytest.hookimpl(  # type: ignore
     tryfirst=True
 )  # run our hookimpl before pytest-html does its own postprocessing
 def pytest_sessionfinish(session: Session, exitstatus: ExitCode) -> None:

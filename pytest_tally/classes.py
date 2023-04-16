@@ -6,8 +6,8 @@ from count_timer import CountTimer
 
 class TallyCountTimer(CountTimer):
     """
-    Overriding CountTimer to add a to_json method. For tis module all we care
-    about is duration, and if the counter is running or not.
+    Overriding CountTimer to add a to_json method. For this module all
+    we care about is duration, and if the counter is running or not.
     """
 
     def __init__(self, duration=0):
@@ -17,6 +17,7 @@ class TallyCountTimer(CountTimer):
         return {
             "elapsed": self.elapsed,
             "running": self.running,
+            "finished": self.elapsed > 0 and not self.running,
         }
 
 
@@ -30,15 +31,19 @@ class TallySession:
         self,
         config: Config,
         session_finished: bool = False,
+        session_num_tests: int = 0,
         session_duration: float = 0.0,
         lastline: str = "",
+        lastline_ansi: str = "",
         timer: TallyCountTimer = TallyCountTimer(),
         tally_tests: dict = {},
     ) -> None:
         self.session_finished = session_finished
         self.session_duration = session_duration
+        self.session_num_tests = session_num_tests
         self.timer = timer
-        self.lastline = ""
+        self.lastline = lastline
+        self.lastline_ansi = lastline_ansi
         self.tally_tests = tally_tests
         self.config = config
 
@@ -46,8 +51,10 @@ class TallySession:
         return {
             "session_finished": self.session_finished,
             "session_duration": self.session_duration,
+            "session_num_tests": self.session_num_tests,
             "timer": self.timer.to_json(),
             "lastline": self.lastline,
+            "lastline_ansi": self.lastline_ansi,
             "tally_tests": {k: v.to_json() for k, v in self.tally_tests.items()},
         }
 

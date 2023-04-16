@@ -19,7 +19,10 @@ setup(
     author_email="jeff.washcloth@gmail.com",
     license="MIT",
     url="https://github.com/jeffwright13/pytest-tally",
-    description="A Pytest plugin to generate realtime summary stats, and display them in-console using a text-based dashboard.",
+    description=(
+        "A Pytest plugin to generate realtime summary stats, and display them"
+        " in-console using a text-based dashboard."
+    ),
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
     packages=find_packages(),
@@ -32,6 +35,7 @@ setup(
         "quantiphy==2.19",
         "rich==13.3.2",
         "single-source==0.3.0",
+        "strip-ansi==0.1.1",
     ],
     setup_requires=["setuptools_scm"],
     include_package_data=True,
@@ -51,7 +55,7 @@ setup(
     entry_points={
         "pytest11": ["pytest_tally = pytest_tally.plugin"],
         "console_scripts": [
-            "tally = pytest_tally.clients.rich_dashboard:main",
+            "tally = pytest_tally.clients.rich_dashboard_2:main",
             "tally-rich = pytest_tally.clients.rich_dashboard:main",
             "tally-rich-asyncio = pytest_tally.clients.rich_dashboard:async_main_entry",
         ],
