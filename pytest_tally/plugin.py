@@ -79,15 +79,6 @@ def write_json_to_file(config: Config, filename: Path) -> None:
     lock_utils.overwrite_json(session_data)
 
 
-def append_json_to_file(config: Config, filename: Path) -> None:
-    global global_config
-    global_config = config
-
-    session_data = global_config._tally_session.to_json()
-    lock_utils = LocakbleJsonFileUtils(file_path=filename)
-    lock_utils.append_json(session_data)
-
-
 def pytest_sessionstart(session: Session) -> None:
     if not check_tally_enabled(session.config):
         return
@@ -200,6 +191,7 @@ def pytest_configure(config: Config) -> None:
                 global_config._tally_session.lastline_ansi = match.string.replace(
                     "=", ""
                 ).strip()
+                # global_config._tally_session.lastline_ansi = match.string
                 global_config._tally_session.lastline = (
                     strip_ansi(match.string).replace("=", "").strip()
                 )
