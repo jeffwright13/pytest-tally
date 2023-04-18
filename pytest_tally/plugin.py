@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import re
@@ -10,6 +11,7 @@ from _pytest.main import Session
 from _pytest.nodes import Item
 from _pytest.reports import TestReport
 from _pytest.runner import CallInfo
+from _pytest.terminal import TerminalReporter
 from strip_ansi import strip_ansi
 
 from pytest_tally.classes import TallyReport, TallySession, TallyTest
@@ -200,9 +202,9 @@ def pytest_configure(config: Config) -> None:
         tr._tw.write = tee_write
 
 
-# def pytest_unconfigure(config: Config) -> None:
-#     tr = config.pluginmanager.getplugin("terminalreporter")
-# del tr._tw.__dict__["write"]
+def pytest_unconfigure(config: Config) -> None:
+    tr = config.pluginmanager.getplugin("terminalreporter")
+    del tr._tw.__dict__["write"]
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -222,15 +224,16 @@ def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
             except KeyError:
                 logger.warning(f"Could not find tally test for node ID {item.nodeid}")
                 return
-        global_config._tally_session.session_duration = (
-            global_config._tally_session.timer.elapsed
-        )
-        write_json_to_file(item.session.config, get_data_file())
+            global_config._tally_session.session_duration = (
+                global_config._tally_session.timer.elapsed
+            )
+            write_json_to_file(item.session.config, get_data_file())
 
 
-@pytest.hookimpl(  # type: ignore
-    tryfirst=True
-)  # run our hookimpl before pytest-html does its own postprocessing
+# @pytest.hookimpl(  # type: ignore
+#     tryfirst=True
+# )  # run our hookimpl before pytest-html does its own postprocessing
+@pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session: Session, exitstatus: ExitCode) -> None:
     if not check_tally_enabled(session.config):
         return
@@ -243,5 +246,23 @@ def pytest_sessionfinish(session: Session, exitstatus: ExitCode) -> None:
         global_config._tally_session.timer.elapsed
     )
     global_config._tally_session.session_finished = True
-
     write_json_to_file(session.config, get_data_file())
+
+
+def pytest_terminal_summary(
+    terminalreporter: TerminalReporter, exitstatus: ExitCode, config: Config
+):
+    if not check_tally_enabled(config):
+        return
+
+    global global_config
+    global_config = config
+
+    if not hasattr(config, "_tally_session"):
+        return
+
+    if not config._tally_session.session_finished:
+        return
+
+    global_config._tally_session.session_finished = True
+    write_json_to_file(config, get_data_file())
