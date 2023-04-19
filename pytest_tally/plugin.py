@@ -1,8 +1,6 @@
-import asyncio
 import logging
 import os
 import re
-import time
 from pathlib import Path
 
 import pytest
@@ -17,7 +15,7 @@ from strip_ansi import strip_ansi
 from pytest_tally.classes import TallyReport, TallySession, TallyTest
 from pytest_tally.utils import LocakbleJsonFileUtils
 
-DEFAULT_FILE = Path(os.getcwd()) / "data.json"
+DEFAULT_FILE = Path(os.getcwd()) / "tally-data.json"
 FLUSH_TIME = 0.05
 
 global_config = None
@@ -31,11 +29,14 @@ def check_tally_enabled(config: Config) -> bool:
 
 def get_data_file() -> Path:
     global global_config
-    return (
-        Path(global_config.option.tally_file)
-        if hasattr(global_config.option, "tally_file")
-        else DEFAULT_FILE
-    )
+
+    if hasattr(global_config.option, "tally_file"):
+        file_path = Path(global_config.option.tally_file)
+    else:
+        file_path = DEFAULT_FILE
+
+    os.makedirs(file_path.parent, exist_ok=True)
+    return file_path
 
 
 def pytest_addoption(parser) -> None:
@@ -54,7 +55,7 @@ def pytest_addoption(parser) -> None:
         default=DEFAULT_FILE,
         help=(
             "Specify the file path to write the pytest-tally data to. Defaults to"
-            " data.json in the current working directory."
+            " tally-data.json in the current working directory."
         ),
     )
 
@@ -204,7 +205,8 @@ def pytest_configure(config: Config) -> None:
 
 def pytest_unconfigure(config: Config) -> None:
     tr = config.pluginmanager.getplugin("terminalreporter")
-    del tr._tw.__dict__["write"]
+    if hasattr(tr, "_tw") and hasattr(tr._tw, "write"):
+        del tr._tw.__dict__["write"]
 
 
 @pytest.hookimpl(hookwrapper=True)

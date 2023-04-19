@@ -1,9 +1,6 @@
 import fcntl
 import json
 import os
-import random
-import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
@@ -44,25 +41,6 @@ class LocakbleJsonFileUtils:
         os.makedirs(self.file_path.parent, exist_ok=True)
         self.file = open(self.file_path, "r")
         fcntl.flock(self.file, fcntl.LOCK_SH)
-
-        # os.makedirs(self.file_path.parent, exist_ok=True)
-        # backoff_time = 0.1  # initial backoff time
-        # max_backoff_time = 5.0  # maximum backoff time
-        # while True:
-        #     try:
-        #         self.file = open(self.file_path, "r")
-        #         fcntl.flock(self.file, fcntl.LOCK_SH)
-        #         break  # break out of the loop if lock is acquired successfully
-        #     except (FileNotFoundError, BlockingIOError):
-        #         # Randomized exponential backoff with maximum backoff time
-        #         backoff_time *= 2  # exponential backoff
-        #         backoff_time += random.uniform(0, 0.1)  # random jitter
-        #         backoff_time = min(
-        #             backoff_time, max_backoff_time
-        #         )  # limit to max backoff time
-        #         time.sleep(backoff_time)
-        # self.file = open(self.file_path, "r")
-        # fcntl.flock(self.file, fcntl.LOCK_SH)
 
     def _acquire_overwrite_lock(self):
         os.makedirs(self.file_path.parent, exist_ok=True)

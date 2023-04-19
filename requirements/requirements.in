@@ -1,8 +1,6 @@
-aioconsole
-blessed
-count-timer
-pytest
+blessed==1.20.0
+count-timer==0.3.8
 quantiphy
 rich
-single-source
-strip-ansi
+single-source==0.3.0
+strip-ansi==0.1.1

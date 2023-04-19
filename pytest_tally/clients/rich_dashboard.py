@@ -1,4 +1,5 @@
 import os
+import time
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from threading import Event, Thread
@@ -14,6 +15,7 @@ from rich.status import Status
 from rich.table import Table
 from rich.text import Text
 
+from pytest_tally import __version__
 from pytest_tally.plugin import DEFAULT_FILE, TallySession
 from pytest_tally.utils import LocakbleJsonFileUtils, clear_file
 
@@ -44,7 +46,7 @@ class Options:
 
         self.max_rows = args.max_rows if hasattr(args, "max_rows") else 0
         self.lines = args.lines
-        self.persist = args.persist
+        self.persist = args.persist if hasattr(args, "persist") else False
 
 
 class Stats:
@@ -183,8 +185,6 @@ class TallyApp:
                     completed=self.stats.num_tests_run,
                     refresh=True,
                 )
-                import time
-
                 time.sleep(1)
                 self.progress.stop_task(self.progress_task)
             else:
@@ -253,25 +253,40 @@ def main():
     parser = ArgumentParser(prog="tally")
     parser.add_argument("filename", nargs="?", help="path to data file")
     parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version="%(prog)s {version}".format(version=__version__),
+    )
+
+    parser.add_argument(
         "-l",
         "--lines",
         action="store_true",
         default=False,
         help="draw separation [l]ines in between each table row (default: False)",
     )
-    parser.add_argument(
-        "-p",
-        "--persist",
-        action="store_true",
-        default=False,
-        help="persist table after tests are finished (default: False)",
-    )
+    # parser.add_argument(
+    #     "-p",
+    #     "--persist",
+    #     action="store_true",
+    #     default=False,
+    #     help="persist table after tests are finished (default: False)",
+    # )
     parser.add_argument(
         "-x",
         "--max_rows",
         action="store",
         type=int,
         default=0,
+        help="ma[x] number of rows to display (default: 0 [no limit])",
+    )
+    parser.add_argument(
+        "-f",
+        "--file-path",
+        action="store",
+        type=str,
+        default=Path.cwd() / "tally-data.json",
         help="ma[x] number of rows to display (default: 0 [no limit])",
     )
     args = parser.parse_args()

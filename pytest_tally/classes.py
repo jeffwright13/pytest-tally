@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 from _pytest.config import Config
 from count_timer import CountTimer
 
