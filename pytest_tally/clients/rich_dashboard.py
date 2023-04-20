@@ -51,9 +51,10 @@ class Options:
 
 class Stats:
     def __init__(self, options: Options) -> None:
-        self.options = options
-        self.total_num_tests = 0
-        self.num_tests_run: int = 0
+        self.options: Options = options
+        self.tot_num_to_run: int = 0
+        self.num_running: int = 0
+        self.num_finished: int = 0
         self.testing_started: bool = False
         self.testing_complete: bool = False
 
@@ -61,9 +62,11 @@ class Stats:
         lock_utils = LocakbleJsonFileUtils(file_path=self.options.filename)
         if init:
             return TallySession(
+                session_started=False,
                 session_finished=False,
                 session_duration=0.0,
-                session_num_tests=0,
+                num_tests_to_run=0,
+                num_tests_have_run=0,
                 timer=None,
                 lastline="",
                 lastline_ansi="",
@@ -78,15 +81,23 @@ class Stats:
         """Retrieve latest info from json file"""
         self.test_session_data = self._get_test_session_data(init=init)
         if self.test_session_data:
-            self.total_num_tests = self.test_session_data.session_num_tests
-            self.num_tests_run = len(
+            self.tot_num_to_run = self.test_session_data.num_tests_to_run
+            self.num_running = len(
+                [
+                    test
+                    for test in self.test_session_data.tally_tests.values()
+                    if test["timer"]["running"]
+                ]
+            )
+            self.num_finished = len(
                 [
                     test
                     for test in self.test_session_data.tally_tests.values()
                     if test["timer"]["finished"]
                 ]
             )
-            self.testing_started = self.num_tests_run > 0
+            # self.testing_started = self.num_running > 0
+            self.testing_started = self.test_session_data.session_started
             self.testing_complete = self.test_session_data.session_finished
 
 
@@ -181,8 +192,8 @@ class TallyApp:
                     self.progress_task,
                     description="Testing Complete",
                     # start=True,
-                    total=self.stats.total_num_tests,
-                    completed=self.stats.num_tests_run,
+                    total=self.stats.tot_num_to_run,
+                    completed=self.stats.num_finished,
                     refresh=True,
                 )
                 time.sleep(1)
@@ -192,8 +203,8 @@ class TallyApp:
                     self.progress_task,
                     description="Testing...",
                     start=True,
-                    total=self.stats.total_num_tests,
-                    completed=self.stats.num_tests_run,
+                    total=self.stats.tot_num_to_run,
+                    completed=self.stats.num_finished,
                 )
 
         # rederable group; members depend on what phase of test session we are in
@@ -201,10 +212,10 @@ class TallyApp:
         def get_panels(finished: bool = False):
             if not self.stats.testing_started:
                 yield self.panel_progress
-            else:
+            elif self.stats.testing_started and not self.stats.testing_complete:
                 yield self.table
                 yield self.panel_progress
-            if self.stats.testing_complete:
+            elif self.stats.testing_started and self.stats.testing_complete:
                 self.stats.update_stats()
                 if self.stats.test_session_data and hasattr(
                     self.stats.test_session_data, "lastline_ansi"
@@ -213,12 +224,14 @@ class TallyApp:
                 else:
                     last_line_ansi = ""
                 last_line = Text.from_ansi(last_line_ansi)
+                yield self.table
+                yield self.panel_progress
                 yield Panel(last_line)
 
         return get_panels()
 
     def rich_client(self) -> None:
-        # put thread into a loop that proceseses pytest results until they are done
+        # put thread into a loop that proceseses pytest results until session is complete
         self.stats.update_stats(init=True)
 
         with Live(
@@ -227,14 +240,14 @@ class TallyApp:
             refresh_per_second=8,
         ) as live:
             while not self.stats.testing_complete:
-                import time
-
                 time.sleep(0.25)
                 live.update(self.main_panel_group())
                 self.stats.update_stats()
 
                 self.progress.update(
-                    0, completed=self.stats.num_tests_run, refresh=True
+                    self.progress_task,
+                    completed=self.stats.num_finished,
+                    refresh=True,
                 )
 
             # Don't stylize (show spinny progress icon) if tests are finished
@@ -244,7 +257,9 @@ class TallyApp:
         # thread to exit, then exit ourselves
         self.stats.update_stats()
         live.update(self.main_panel_group(stylize_last_line=False))
-        self.progress.update(0, completed=self.stats.num_tests_run, refresh=True)
+        self.progress.update(
+            self.progress_task, completed=self.stats.num_finished, refresh=True
+        )
         self.event.set()
 
 

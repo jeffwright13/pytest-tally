@@ -136,4 +136,4 @@ launch.json
 .idea/
 
 # pytest-tally scratch file
-data.json
+tally-data.json

@@ -28,17 +28,21 @@ class TallySession:
     def __init__(
         self,
         config: Config,
+        session_started: bool = False,
         session_finished: bool = False,
-        session_num_tests: int = 0,
+        num_tests_to_run: int = 0,
+        num_tests_have_run: int = 0,
         session_duration: float = 0.0,
         lastline: str = "",
         lastline_ansi: str = "",
         timer: TallyCountTimer = TallyCountTimer(),
         tally_tests: dict = {},
     ) -> None:
+        self.session_started = session_started
         self.session_finished = session_finished
         self.session_duration = session_duration
-        self.session_num_tests = session_num_tests
+        self.num_tests_to_run = num_tests_to_run
+        self.num_tests_have_run = num_tests_have_run
         self.timer = timer
         self.lastline = lastline
         self.lastline_ansi = lastline_ansi
@@ -47,9 +51,11 @@ class TallySession:
 
     def to_json(self):
         return {
+            "session_started": self.session_started,
             "session_finished": self.session_finished,
             "session_duration": self.session_duration,
-            "session_num_tests": self.session_num_tests,
+            "num_tests_to_run": self.num_tests_to_run,
+            "num_tests_have_run": self.num_tests_have_run,
             "timer": self.timer.to_json(),
             "lastline": self.lastline,
             "lastline_ansi": self.lastline_ansi,
