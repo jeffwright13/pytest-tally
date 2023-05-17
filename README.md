@@ -1,8 +1,9 @@
 # pytest-tally
 
-### A Pytest plugin that displays test run progress in-console or in-broswer. ###
+### A Pytest plugin that displays test run progress in-console or in-browser. ###
 
 ![2023-04-14 18 34 48](https://user-images.githubusercontent.com/4308435/232174467-752c5d13-15e3-4c23-9430-1087050af0a4.gif)
+![2023-05-17 15 15 02](https://github.com/jeffwright13/pytest-tally/assets/4308435/a35151e2-64fe-40e2-bd2e-9a59033edcd3)
 
 
 ## Why?
