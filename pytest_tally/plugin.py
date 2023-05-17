@@ -9,6 +9,7 @@ from _pytest.main import Session
 from _pytest.nodes import Item
 from _pytest.reports import TestReport
 from _pytest.runner import CallInfo
+from _pytest.stash import Stash, StashKey
 from _pytest.terminal import TerminalReporter
 from strip_ansi import strip_ansi
 
@@ -18,7 +19,10 @@ from pytest_tally.utils import LocakbleJsonFileUtils
 DEFAULT_FILE = Path(os.getcwd()) / "tally-data.json"
 FLUSH_TIME = 0.05
 
-session_config = None
+# session_config = None
+pytest_tally_enabled = StashKey[bool]()
+pytest_tally_json_file = StashKey[Path]()
+pytest_tally_session = StashKey[TallySession]()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -30,19 +34,12 @@ logger.addHandler(stream_handler)
 
 
 def check_tally_enabled(config: Config) -> bool:
-    return bool(config.option.tally) if hasattr(config.option, "tally") else False
-
-
-def get_data_file() -> Path:
-    global session_config
-
-    if hasattr(session_config.option, "tally_file"):
-        file_path = Path(session_config.option.tally_file)
-    else:
-        file_path = DEFAULT_FILE
-
-    os.makedirs(file_path.parent, exist_ok=True)
-    return file_path
+    # return bool(config.option.tally) if hasattr(config.option, "tally") else False
+    stash: Stash = config.stash
+    stash["pytest_tally_enabled"] = (
+        bool(config.option.tally) if hasattr(config.option, "tally") else False
+    )
+    return stash["pytest_tally_enabled"]
 
 
 def pytest_addoption(parser) -> None:
@@ -52,7 +49,7 @@ def pytest_addoption(parser) -> None:
         action="store_true",
         help=(
             "Enable the pytest-tally plugin. Writes live summary results data to a JSON"
-            " file for comsumption by a dashboard client."
+            " file for consumption by a dashboard client."
         ),
     ),
     group.addoption(
@@ -67,24 +64,50 @@ def pytest_addoption(parser) -> None:
 
 
 def pytest_cmdline_main(config: Config) -> None:
-    if not check_tally_enabled(config):
+    # Define stash values here since this is one of the first pytest hooks to run in a sssion
+    stash: Stash = config.stash
+    stash["pytest_tally_enabled"] = (
+        bool(config.option.tally) if hasattr(config.option, "tally") else False
+    )
+    if not stash["pytest_tally_enabled"]:
         return
+    stash["pytest_tally_json_file"] = (
+        Path(config.option.tally_file)
+        if hasattr(config.option, "tally_file")
+        else DEFAULT_FILE
+    )
 
-    global session_config
-    session_config = config
+    # global session_config
+    # session_config = config
 
-    if not hasattr(session_config, "_tally_session"):
-        session_config._tally_session = TallySession(
-            config=config,
-        )
+    # if not hasattr(session_config, "_tally_session"):
+    #     session_config._tally_session = TallySession(
+    #         config=config,
+    #     )
+    pytest_tally_session = stash.get("pytest_tally_session", None)
+    if not pytest_tally_session:
+        stash["pytest_tally_session"] = TallySession(config=config)
 
 
-def write_json_to_file(config: Config, filename: Path) -> None:
-    global session_config
-    session_config = config
+def write_json_to_file(config: Config) -> None:
+    # global session_config
+    # session_config = config
 
-    session_data = session_config._tally_session.to_json()
-    lock_utils = LocakbleJsonFileUtils(file_path=filename)
+    stash: Stash = config.stash
+
+    # file_path = config.getoption('--tally-file')
+    file_path = stash.get("pytest_tally_json_file", DEFAULT_FILE)
+
+    # if hasattr(session_config.option, "tally_file"):
+    #     file_path = Path(session_config.option.tally_file)s
+    # else:
+    #     file_path = DEFAULT_FILE
+
+    os.makedirs(file_path.parent, exist_ok=True)
+
+    # session_data = session_config._tally_session.to_json()
+    session_data = stash["pytest_tally_session"].to_json()
+    lock_utils = LocakbleJsonFileUtils(file_path=file_path)
     lock_utils.overwrite_json(session_data)
 
 
@@ -92,123 +115,72 @@ def pytest_sessionstart(session: Session) -> None:
     if not check_tally_enabled(session.config):
         return
 
-    global session_config
-    session_config = session.config
+    # global session_config
+    # session_config = session.config
 
-    session_config._tally_session.timer.start()
-    session_config._tally_session.session_started = True
-    session_config._tally_session.session_duration = (
-        session_config._tally_session.timer.elapsed
-    )
-    write_json_to_file(session.config, get_data_file())
+    pytest_tally_session = session.config.stash["pytest_tally_session"]
+    pytest_tally_session.timer.start()
+    pytest_tally_session.session_started = True
+    pytest_tally_session.session_duration = pytest_tally_session.timer.elapsed
+    write_json_to_file(session.config)
 
 
 def pytest_collection_finish(session: Session) -> None:
     if not check_tally_enabled(session.config):
         return
 
-    session_config._tally_session.num_tests_to_run = len(session.items)
-    session_config._tally_session.session_duration = (
-        session_config._tally_session.timer.elapsed
-    )
-    write_json_to_file(session.config, get_data_file())
+    # global session_config
+    # session_config = session.config
 
-
-# @pytest.hookimpl(hookwrapper=True)
-# def pytest_runtest_logstart(
-#     nodeid: str, location: Tuple[str, Optional[int], str]) -> None:
-#     # yield
-
-#     if not check_tally_enabled(session_config):
-#         return
-
-#     global session_config
-#     session_config = item.session.config
-
-#     tally_test = TallyTest(node_id=item.nodeid)
-#     tally_test.timer.reset()
-#     tally_test.timer.start()
-#     session_config._tally_session.tally_tests[item.nodeid] = tally_test
+    pytest_tally_session = session.config.stash["pytest_tally_session"]
+    pytest_tally_session.num_tests_to_run = len(session.items)
+    pytest_tally_session.session_duration = pytest_tally_session.timer.elapsed
+    write_json_to_file(session.config)
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_setup(item: Item):
     if not check_tally_enabled(item.session.config):
+        yield
         return
 
-    global session_config
-    session_config = item.session.config
+    # global session_config
+    # session_config = item.session.config
 
     tally_test = TallyTest(node_id=item.nodeid)
     tally_test.timer.reset()
     tally_test.timer.start()
-    session_config._tally_session.tally_tests[item.nodeid] = tally_test
+    pytest_tally_session = item.session.config.stash["pytest_tally_session"]
+    pytest_tally_session.tally_tests[item.nodeid] = tally_test
 
-    if session_config._tally_session.num_tests_have_run == 0:
-        write_json_to_file(session_config, get_data_file())
-    session_config._tally_session.num_tests_have_run += 1
+    if pytest_tally_session.num_tests_have_run == 0:
+        write_json_to_file(item.session.config)
+    pytest_tally_session.num_tests_have_run += 1
     yield
-
-
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_logreport(report: TestReport) -> None:
-    yield
-
-    if not session_config:
-        return
-
-    if report.when in ("setup", "teardown") and report.outcome == "failed":
-        outcome = "error"
-    elif hasattr(report, "wasxfail"):
-        if report.outcome in ("passed", "failed"):
-            outcome = "xpassed"
-        elif report.outcome == "skipped":
-            outcome = "xfailed"
-    else:
-        outcome = report.outcome
-
-    tally_report = TallyReport(
-        node_id=report.nodeid,
-        when=report.when,
-        outcome=report.outcome,
-    )
-    try:
-        tally_test = session_config._tally_session.tally_tests[tally_report.node_id]
-        tally_test.reports[tally_report.when] = tally_report
-    except KeyError:
-        logger.warning(f"Could not find tally test for node ID {tally_report.node_id}")
-        return
-
-    if tally_test.test_outcome:
-        tally_test.timer.pause()
-        tally_test.test_duration = tally_test.timer.elapsed
-        return
-
-    if tally_report.when == "setup" and outcome in ["error", "skipped"]:
-        tally_test.timer.pause()
-        tally_test.test_duration = tally_test.timer.elapsed
-        tally_test.test_outcome = outcome.capitalize()
-        return
-
-    if tally_report.when == "call":
-        tally_test.test_outcome = outcome.capitalize()
-        return
 
 
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
     # uses pytest 'pastebin.py' source code for inspiration
     if not check_tally_enabled(config):
+        yield
         return
 
-    global session_config
-    session_config = config
+    # global session_config
+    # session_config = config
 
-    if not hasattr(config, "_tally_session"):
-        session_config._tally_session = TallySession(
-            config=config,
-        )
+    # if not hasattr(config, "_tally_session"):
+    #     session_config._tally_session = TallySession(
+    #         config=config,
+    #     )
 
+    stash = config.stash
+    pytest_tally_session = stash.get("pytest_tally_session", None)
+    if not pytest_tally_session:
+        stash["pytest_tally_session"] = TallySession(config=config)
+
+    # This code exists solely to extract the single 'lastline' of the session for
+    # display in the dashboard. It is a hacky way to do it, but it works.
     tr = config.pluginmanager.getplugin("terminalreporter")
     if tr is not None:
         oldwrite = tr._tw.write
@@ -218,79 +190,166 @@ def pytest_configure(config: Config) -> None:
             oldwrite(s, **kwargs)
             match = re.search(lastline_matcher, s)
             if match:
-                session_config._tally_session.lastline_ansi = match.string.replace(
+                pytest_tally_session.lastline_ansi = match.string.replace(
                     "=", ""
                 ).strip()
-                session_config._tally_session.lastline = (
+                pytest_tally_session.lastline = (
                     strip_ansi(match.string).replace("=", "").strip()
                 )
-                write_json_to_file(session_config, get_data_file())
+                write_json_to_file(config)
 
         tr._tw.write = tee_write
-
-
-def pytest_unconfigure(config: Config) -> None:
-    tr = config.pluginmanager.getplugin("terminalreporter")
-    if hasattr(tr, "_tw") and hasattr(tr._tw, "write"):
-        del tr._tw.__dict__["write"]
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item: Item, call: CallInfo) -> None:
     if not check_tally_enabled(item.session.config):
         yield
+        return  # do we need both yield and return?
 
     else:
-        global session_config
+        # global session_config
         session_config = item.session.config
+        pytest_tally_session = session_config.stash["pytest_tally_session"]
 
         r = yield
         report = r.get_result()
         if report.when == "teardown":
             try:
-                session_config._tally_session.tally_tests[item.nodeid].timer.pause()
+                pytest_tally_session.tally_tests[item.nodeid].timer.pause()
             except KeyError:
                 logger.warning(f"Could not find tally test for node ID {item.nodeid}")
                 return
-            session_config._tally_session.session_duration = (
-                session_config._tally_session.timer.elapsed
+            pytest_tally_session.session_duration = pytest_tally_session.timer.elapsed
+            write_json_to_file(item.session.config)
+
+        if report.when in ("setup", "teardown") and report.outcome == "failed":
+            outcome = "error"
+        elif hasattr(report, "wasxfail"):
+            if report.outcome in ("passed", "failed"):
+                outcome = "xpassed"
+            elif report.outcome == "skipped":
+                outcome = "xfailed"
+        else:
+            outcome = report.outcome
+
+        tally_report = TallyReport(
+            node_id=report.nodeid,
+            when=report.when,
+            outcome=report.outcome,
+        )
+
+        try:
+            tally_test = pytest_tally_session.tally_tests[tally_report.node_id]
+            tally_test.reports[tally_report.when] = tally_report
+        except KeyError:
+            logger.warning(
+                f"Could not find tally test for node ID {tally_report.node_id}"
             )
-            write_json_to_file(item.session.config, get_data_file())
+            return
+
+        if tally_test.test_outcome:
+            tally_test.timer.pause()
+            tally_test.test_duration = tally_test.timer.elapsed
+            return
+
+        if tally_report.when == "setup" and outcome in ["error", "skipped"]:
+            tally_test.timer.pause()
+            tally_test.test_duration = tally_test.timer.elapsed
+            tally_test.test_outcome = outcome.capitalize()
+            return
+
+        if tally_report.when == "call":
+            tally_test.test_outcome = outcome.capitalize()
+            return
 
 
-# @pytest.hookimpl(  # type: ignore
-#     tryfirst=True
-# )  # run our hookimpl before pytest-html does its own postprocessing
-@pytest.hookimpl(trylast=True)
+# @pytest.hookimpl(hookwrapper=True)
+# def pytest_runtest_logreport(report: TestReport) -> None:
+#     """
+#     This hook is called for every test report (setup/call/teardown), and is
+#     used to calculate and record the outcome of each test.
+#     """
+#     global session_config
+
+#     if not check_tally_enabled(item.session.config):
+#         yield
+
+#     global session_config
+#     if not session_config:
+#         return
+
+#     if report.when in ("setup", "teardown") and report.outcome == "failed":
+#         outcome = "error"
+#     elif hasattr(report, "wasxfail"):
+#         if report.outcome in ("passed", "failed"):
+#             outcome = "xpassed"
+#         elif report.outcome == "skipped":
+#             outcome = "xfailed"
+#     else:
+#         outcome = report.outcome
+
+#     tally_report = TallyReport(
+#         node_id=report.nodeid,
+#         when=report.when,
+#         outcome=report.outcome,
+#     )
+
+#     try:
+#         tally_test = session_config._tally_session.tally_tests[tally_report.node_id]
+#         tally_test.reports[tally_report.when] = tally_report
+#     except KeyError:
+#         logger.warning(f"Could not find tally test for node ID {tally_report.node_id}")
+#         return
+
+#     if tally_test.test_outcome:
+#         tally_test.timer.pause()
+#         tally_test.test_duration = tally_test.timer.elapsed
+#         return
+
+#     if tally_report.when == "setup" and outcome in ["error", "skipped"]:
+#         tally_test.timer.pause()
+#         tally_test.test_duration = tally_test.timer.elapsed
+#         tally_test.test_outcome = outcome.capitalize()
+#         return
+
+#     if tally_report.when == "call":
+#         tally_test.test_outcome = outcome.capitalize()
+#         return
+
+
+# @pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session: Session, exitstatus: ExitCode) -> None:
+    # This called after whole test run finished, right before returning the exit status to the system.
     if not check_tally_enabled(session.config):
+        # yield
         return
 
-    global session_config
+    # global session_config
     session_config = session.config
+    pytest_tally_session = session_config.stash["pytest_tally_session"]
 
-    session_config._tally_session.timer.pause()
-    session_config._tally_session.session_duration = (
-        session_config._tally_session.timer.elapsed
-    )
-    session_config._tally_session.session_finished = True
-    write_json_to_file(session.config, get_data_file())
+    pytest_tally_session.timer.pause()
+    pytest_tally_session.session_duration = pytest_tally_session.timer.elapsed
+    pytest_tally_session.session_finished = True
+    write_json_to_file(session.config)
 
 
-def pytest_terminal_summary(
-    terminalreporter: TerminalReporter, exitstatus: ExitCode, config: Config
-):
-    if not check_tally_enabled(config):
-        return
+# def pytest_terminal_summary(
+#     terminalreporter: TerminalReporter, exitstatus: ExitCode, config: Config
+# ):
+#     if not check_tally_enabled(config):
+#         return
 
-    global session_config
-    session_config = config
+#     # global session_config
+#     session_config = config
+#     pytest_tally_session = session_config.stash["pytest_tally_session"]
 
-    if not hasattr(config, "_tally_session"):
-        return
+#     if not hasattr(config, "_tally_session"):
+#         return
 
-    if not config._tally_session.session_finished:
-        return
+#     if not config._tally_session.session_finished:
+#         return
 
-    session_config._tally_session.session_finished = True
-    write_json_to_file(config, get_data_file())
+#     pytest_tally_session.session_finished = True
+#     write_json_to_file(config)

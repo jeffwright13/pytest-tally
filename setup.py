@@ -14,7 +14,7 @@ def read(fname):
 
 setup(
     name="pytest-tally",
-    version="1.1.1",
+    version="1.2.0",
     author="Jeff Wright",
     author_email="jeff.washcloth@gmail.com",
     license="MIT",
@@ -31,6 +31,7 @@ setup(
     install_requires=[
         "blessed==1.20.0",
         "count-timer==0.3.8",
+        "flask==2.3.2",
         "pytest>=6.2.5",
         "quantiphy==2.19",
         "rich==13.3.2",

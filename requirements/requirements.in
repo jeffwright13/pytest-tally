@@ -1,5 +1,6 @@
 blessed==1.20.0
 count-timer==0.3.8
+flask
 quantiphy
 rich
 single-source==0.3.0

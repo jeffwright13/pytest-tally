@@ -10,7 +10,13 @@ from rich.box import ROUNDED as rounded
 from rich.console import Console, Group, group
 from rich.live import Live
 from rich.panel import Panel
-from rich.progress import Progress
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+)
 from rich.status import Status
 from rich.table import Table
 from rich.text import Text
@@ -109,9 +115,39 @@ class TallyApp:
         self.table = Table(
             highlight=True, expand=True, show_lines=args.lines, box=rounded
         )
-        self.progress = Progress(expand=True)
+        self.progress_pretest = Progress(
+            TextColumn("Waiting for tests to start..."),
+            BarColumn(style="bar.pulse", bar_width=None),
+            expand=True,
+        )
+        self.progress_testing = Progress(
+            SpinnerColumn(),
+            TextColumn("Testing In Progress"),
+            BarColumn(style="bar.back", bar_width=None),
+            TaskProgressColumn(),
+            expand=True,
+        )
+        self.progress_finished = Progress(
+            TextColumn("Testing Complete!"),
+            BarColumn(style="bar.finished", bar_width=None),
+            TaskProgressColumn(),
+            expand=True,
+        )
+
+        # TaskProgressColumn, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+        # self.progress = Progress(
+        #     # SpinnerColumn(),
+        #     # TextColumn("[progress.percentage]{task.percentage:>3.0f}%", style="bright_yellow"),
+        #     TextColumn("Waiting for tests to start...", style="bright_yellow"),
+        #     BarColumn(bar_width=None),
+        #     TextColumn("[progress.percentage]{task.percentage:>3.0f}%", style="bright_yellow"),
+        #     expand=True,
+        # )
+        self.progress = self.progress_pretest
         self.progress_task = self.progress.add_task(
-            "Waiting for tests to start...", start=False
+            "Waiting for tests to start...",
+            start=False,
+            style="bar.pulse",
         )
         self.panel_progress = Panel(self.progress)
 
@@ -188,23 +224,32 @@ class TallyApp:
         self.stats.update_stats()
         if self.stats.testing_started:
             if self.stats.testing_complete:
+                self.progress = self.progress_finished
+                self.progress_task = self.progress.add_task(
+                    "Waiting for tests to start...", start=False
+                )
+                self.panel_progress = Panel(self.progress)
                 self.progress.update(
                     self.progress_task,
-                    description="Testing Complete",
-                    # start=True,
+                    # description="Testing Complete",
                     total=self.stats.tot_num_to_run,
                     completed=self.stats.num_finished,
                     refresh=True,
+                    style="bar.finished",
                 )
                 time.sleep(1)
                 self.progress.stop_task(self.progress_task)
             else:
+                self.progress = self.progress_testing
+                self.progress_task = self.progress.add_task("Running tests", start=True)
+                self.panel_progress = Panel(self.progress)
                 self.progress.update(
                     self.progress_task,
-                    description="Testing...",
-                    start=True,
+                    # description="Testing...",
+                    # start=True,
                     total=self.stats.tot_num_to_run,
                     completed=self.stats.num_finished,
+                    style="bar.complete",
                 )
 
         # rederable group; members depend on what phase of test session we are in
@@ -240,7 +285,7 @@ class TallyApp:
             refresh_per_second=8,
         ) as live:
             while not self.stats.testing_complete:
-                time.sleep(0.25)
+                # time.sleep(0.25)
                 live.update(self.main_panel_group())
                 self.stats.update_stats()
 

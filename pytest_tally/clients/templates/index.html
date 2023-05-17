@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Results</title>
+    <style>
+        /* Add CSS styles for the table */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: #fff;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        table th,
+        table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table th {
+            background-color: #f5f5f5;
+        }
+
+        table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        table tfoot td {
+            padding-top: 10px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        progress {
+            width: 100%;
+            height: 10px;
+        }
+
+        .spinner {
+            display: inline-block;
+            animation: spin 0.7s infinite linear;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        #last-line {
+            white-space: pre;
+        }
+
+        #table-container {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Results</h1>
+    <div id="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>node_id</th>
+                    <th>test_duration</th>
+                    <th>test_outcome</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for node_id, test_data in results.tally_tests.items() %}
+                    <tr>
+                        <td>{{ node_id }}</td>
+                        <td>
+                            {% if test_data.timer.running %}
+                                <div class="spinner"></div>
+                            {% else %}
+                                {{ test_data.test_duration }}
+                            {% endif %}
+                        </td>
+                        <td style="color: {% if test_data.test_outcome == 'Passed' %}green{% elif test_data.test_outcome == 'Failed' %}red{% else %}black{% endif %}">
+                            {% if test_data.timer.running %}
+                                ---
+                            {% else %}
+                                {{ test_data.test_outcome }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <hr>
+    <table>
+        <tfoot>
+            <tr>
+                <td colspan="3">
+                    {% if results.session_started %}
+                        {% if not results.session_finished %}
+                            Test in progress...
+                            <progress value="{{ results.num_tests_have_run }}" max="{{ results.num_tests_to_run }}"></progress>
+                        {% else %}
+                            Testing Complete!
+                            <progress value="{{ results.num_tests_to_run }}" max="{{ results.num_tests_to_run }}"></progress>
+                        {% endif %}
+                    {% else %}
+                        Waiting for data...
+                    {% endif %}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+    {% if results.lastline_ansi %}
+        <p style="color: #{{ results.lastline_ansi }}">{{ results.lastline }}</p>
+    {% endif %}
+
+    <script>
+        // Function to fetch updated results from the server
+        function fetchResults() {
+            fetch('/results')
+                .then(response => response.json())
+                .then(data => {
+                    // Update the table with the fetched results
+                    updateTable(data);
+                })
+                .catch(error => {
+                    console.log('Error:', error);
+                });
+        }
+
+        // Call fetchResults() initially to load the results
+        fetchResults();
+
+        // Function to update the table with new data
+        function updateTable(results) {
+            // Update the table rows with the new data
+            const tableBody = document.querySelector('tbody');
+            tableBody.innerHTML = '';
+
+            for (const [nodeId, test] of Object.entries(results.tally_tests)) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${nodeId}</td>
+                    <td>${test.timer.running ? '<div class="spinner"></div>' : test.test_duration}</td>
+                    <td style="color: ${getColor(test.test_outcome, test.timer.running)}">
+                        ${test.timer.running ? '---' : test.test_outcome}
+                    </td>
+                `;
+
+                tableBody.appendChild(row);
+            }
+
+            // Update the bottom row with the test session progress
+            const bottomRow = document.querySelector('tfoot tr td');
+            if (results.session_started) {
+                if (!results.session_finished) {
+                    bottomRow.innerHTML = 'Test in progress...<progress value="' + results.num_tests_have_run + '" max="' + results.num_tests_to_run + '"></progress>';
+                } else {
+                    bottomRow.innerHTML = 'Testing Complete!<progress value="' + results.num_tests_to_run + '" max="' + results.num_tests_to_run + '"></progress>';
+                }
+            } else {
+                bottomRow.innerHTML = 'Waiting for data...';
+            }
+
+            // Update the last line with ANSI coloring
+            const lastLine = document.getElementById('last-line');
+            if (results.lastline_ansi) {
+                lastLine.innerHTML = results.lastline;
+                lastLine.style.color = '#' + results.lastline_ansi;
+            } else {
+                lastLine.innerHTML = '';
+            }
+
+            // After updating the table, scroll to the bottom
+            const tableContainer = document.getElementById('table-container');
+            tableContainer.scrollTop = tableContainer.scrollHeight;
+        }
+
+        // Function to get the color based on the test outcome
+        function getColor(testOutcome, isRunning) {
+            if (isRunning) {
+                return 'black';
+            } else if (testOutcome === 'Passed') {
+                return 'green';
+            } else if (testOutcome === 'Failed') {
+                return 'red';
+            } else {
+                return 'black';
+            }
+        }
+
+        // Periodically fetch updated results every 5 seconds
+        setInterval(fetchResults, 1000);
+    </script>
+</body>
+</html>
