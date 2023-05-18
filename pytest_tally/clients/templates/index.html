@@ -57,6 +57,14 @@
             animation: spin 0.7s infinite linear;
         }
 
+        .title {
+            text-align: center;
+        }
+
+        .last-line {
+            text-align: center;
+        }
+
         @keyframes spin {
             to {
                 transform: rotate(360deg);
@@ -67,6 +75,57 @@
             white-space: pre;
         }
 
+        .failed {
+            color: red;
+        }
+
+        .passed {
+            color: green;
+        }
+
+        .skipped {
+            color: gray;
+        }
+
+        .deselected {
+            color: darkgray;
+        }
+
+        .xfailed {
+            color: darkred;
+        }
+
+        .xpassed {
+            color: darkgreen;
+        }
+
+        .warnings {
+            color: goldenrod;
+        }
+
+        .errors {
+            color: magenta;
+        }
+
+        .rerun {
+            color: darkgoldenrod;
+        }
+
+
+
+
+        .red {
+            color: red;
+        }
+
+        .green {
+            color: green;
+        }
+
+        .orange {
+            color: orange;
+        }
+
         #table-container {
             max-height: 80vh;
             overflow-y: auto;
@@ -74,7 +133,7 @@
     </style>
 </head>
 <body>
-    <h1>Test Results</h1>
+    <h1 class="title">Test Results</h1>
     <div id="table-container">
         <table>
             <thead>
@@ -128,10 +187,11 @@
         </tfoot>
     </table>
     {% if results.lastline_ansi %}
-        <p style="color: #{{ results.lastline_ansi }}">{{ results.lastline }}</p>
+        <p id="last-line" class="last-line" style="color: #{{ results.lastline_ansi }}">{{ results.lastline }}</p>
     {% endif %}
 
     <script>
+
         // Function to fetch updated results from the server
         function fetchResults() {
             fetch('/results')
@@ -147,6 +207,48 @@
 
         // Call fetchResults() initially to load the results
         fetchResults();
+
+        // // Function to update the table with new data
+        // function updateTable(results) {
+        //     // Update the table rows with the new data
+        //     const tableBody = document.querySelector('tbody');
+        //     tableBody.innerHTML = '';
+
+        //     for (const [nodeId, test] of Object.entries(results.tally_tests)) {
+        //         const row = document.createElement('tr');
+        //         row.innerHTML = `
+        //             <td>${nodeId}</td>
+        //             <td>${test.timer.running ? '<div class="spinner"></div>' : test.test_duration}</td>
+        //             <td style="color: ${getColor(test.test_outcome, test.timer.running)}">
+        //                 ${test.timer.running ? '---' : test.test_outcome}
+        //             </td>
+        //         `;
+
+        //         tableBody.appendChild(row);
+        //     }
+
+        //     // Update the bottom row with the test session progress
+        //     const bottomRow = document.querySelector('tfoot tr td');
+        //     if (results.session_started) {
+        //         if (!results.session_finished) {
+        //             bottomRow.innerHTML = 'Test in progress...<progress value="' + results.num_tests_have_run + '" max="' + results.num_tests_to_run + '"></progress>';
+        //         } else {
+        //             bottomRow.innerHTML = 'Testing Complete!<progress value="' + results.num_tests_to_run + '" max="' + results.num_tests_to_run + '"></progress>';
+
+        //             // Call updateLastLine() only if the latest test is not running
+        //             const lastTest = results.tally_tests[Object.keys(results.tally_tests).pop()];
+        //             if (!lastTest.timer.running) {
+        //                 updateLastLine(results);
+        //             }
+        //         }
+        //     } else {
+        //         bottomRow.innerHTML = 'Waiting for data...';
+        //     }
+
+        //     // After updating the table, scroll to the bottom
+        //     const tableContainer = document.getElementById('table-container');
+        //     tableContainer.scrollTop = tableContainer.scrollHeight;
+        // }
 
         // Function to update the table with new data
         function updateTable(results) {
@@ -172,20 +274,23 @@
             if (results.session_started) {
                 if (!results.session_finished) {
                     bottomRow.innerHTML = 'Test in progress...<progress value="' + results.num_tests_have_run + '" max="' + results.num_tests_to_run + '"></progress>';
+
+                    // Hide the last line if the test is in progress
+                    hideLastLine();
                 } else {
                     bottomRow.innerHTML = 'Testing Complete!<progress value="' + results.num_tests_to_run + '" max="' + results.num_tests_to_run + '"></progress>';
+
+                    // Show the last line if the test is not running
+                    const lastTest = results.tally_tests[Object.keys(results.tally_tests).pop()];
+                    if (!lastTest.timer.running) {
+                        showLastLine(results);
+                    }
                 }
             } else {
                 bottomRow.innerHTML = 'Waiting for data...';
-            }
 
-            // Update the last line with ANSI coloring
-            const lastLine = document.getElementById('last-line');
-            if (results.lastline_ansi) {
-                lastLine.innerHTML = results.lastline;
-                lastLine.style.color = '#' + results.lastline_ansi;
-            } else {
-                lastLine.innerHTML = '';
+                // Hide the last line if waiting for data
+                hideLastLine();
             }
 
             // After updating the table, scroll to the bottom
@@ -193,21 +298,119 @@
             tableContainer.scrollTop = tableContainer.scrollHeight;
         }
 
-        // Function to get the color based on the test outcome
-        function getColor(testOutcome, isRunning) {
+        // Function to hide the last line
+        function hideLastLine() {
+            const lastLine = document.getElementById('last-line');
+            if (lastLine) {
+                lastLine.style.display = 'none';
+            }
+        }
+
+        // Function to show the last line
+        function showLastLine(results) {
+            const lastLine = document.getElementById('last-line');
+            if (lastLine) {
+                lastLine.style.display = 'block';
+                updateLastLine(results);
+            }
+        }
+
+
+        // Function to get the color of an outcome based on the test outcome value
+        function getColor(lastLine, isRunning) {
             if (isRunning) {
                 return 'black';
-            } else if (testOutcome === 'Passed') {
+            } else if (lastLine.toLowerCase() === 'passed') {
                 return 'green';
-            } else if (testOutcome === 'Failed') {
+            } else if (lastLine.toLowerCase() === 'failed') {
                 return 'red';
+            } else if (lastLine.toLowerCase() === 'xfailed') {
+                return 'red';
+            } else if (lastLine.toLowerCase() === 'xpassed') {
+                return 'green';
+            } else if (lastLine.toLowerCase() === 'skipped') {
+                return 'gray';
+            } else if (lastLine.toLowerCase() === 'error') {
+                return 'magenta';
             } else {
                 return 'black';
             }
         }
 
-        // Periodically fetch updated results every 5 seconds
+        const lastLine = document.getElementById('last-line');
+        const lineText = lastLine.textContent;
+
+        // Function to update the last line with the latest outcome
+        function updateLastLine(lastLineData) {
+            const lastLine = document.getElementById('last-line');
+            const lineText = lastLineData.lastline;
+
+            // Define CSS classes for each outcome in the lastline
+            const last_line_classes = {
+                failed: 'failed',
+                passed: 'passed',
+                skipped: 'skipped',
+                deselected: 'deselected',
+                xfailed: 'xfailed',
+                xpassed: 'xpassed',
+                warnings: 'warnings',
+                errors: 'errors',
+                rerun: 'rerun',
+            };
+
+            // Function to color-code the outcome words
+            function colorCodeOutcomeWords(lineText) {
+                const outcomeWords = lineText.split(', ');
+
+                // Iterate over each outcome word and wrap it in a <span> with appropriate class
+                const coloredOutcome = outcomeWords.map(outcome => {
+                    const [count, word] = outcome.split(' ');
+                    const className = last_line_classes[word] || '';
+                    return `<span class="${className}">${count} ${word}</span>`;
+                });
+
+                // Join the colored outcome words back into a string
+                return coloredOutcome.join(', ');
+            }
+
+            // Color-code the outcome words and update the HTML content
+            lastLine.innerHTML = colorCodeOutcomeWords(lineText);
+        }
+
+        // Define CSS classes for each outcome in the lastline
+        const last_line_classes = {
+            failed: 'failed',
+            passed: 'passed',
+            skipped: 'skipped',
+            deselected: 'deselected',
+            xfailed: 'xfailed',
+            xpassed: 'xpassed',
+            warnings: 'warnings',
+            errors: 'errors',
+            rerun: 'rerun',
+        };
+
+        // Function to color-code the outcome words
+        function colorCodeOutcomeWords(lineText) {
+        const outcomeWords = lineText.split(', ');
+
+        // Iterate over each outcome word and wrap it in a <span> with appropriate class
+        const coloredOutcome = outcomeWords.map(outcome => {
+            const [count, word] = outcome.split(' ');
+            const className = last_line_classes[word] || '';
+            return `<span class="${className}">${count} ${word}</span>`;
+        });
+
+        // Join the colored outcome words back into a string
+        return coloredOutcome.join(', ');
+        }
+
+        // Color-code the outcome words and update the HTML content
+        lastLine.innerHTML = colorCodeOutcomeWords(lineText);
+
+        // Periodically fetch updated results (ms)
         setInterval(fetchResults, 1000);
+
     </script>
 </body>
 </html>
