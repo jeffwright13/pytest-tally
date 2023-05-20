@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project tries to adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.2.0 - 2023-05-20
+- Added web app support via Flask
+- Fixed broekn'ds Rich app
+
 ## [1.1.1] 2023-04-14
 - Implemented file-lock on shared JSON file to fix client stuttering issue.
 - Added support for CLI option '-l' (lines -separators).

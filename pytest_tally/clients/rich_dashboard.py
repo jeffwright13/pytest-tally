@@ -10,13 +10,7 @@ from rich.box import ROUNDED as rounded
 from rich.console import Console, Group, group
 from rich.live import Live
 from rich.panel import Panel
-from rich.progress import (
-    BarColumn,
-    Progress,
-    SpinnerColumn,
-    TaskProgressColumn,
-    TextColumn,
-)
+from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
 from rich.status import Status
 from rich.table import Table
 from rich.text import Text
@@ -41,9 +35,7 @@ class Duration(Quantity):
     prec = 2
 
 
-class Options:
-    """Options passed in by user from command line"""
-
+class CmdLineOptions:
     def __init__(self, args: Namespace) -> None:
         self.filename = Path(args.filename) if args.filename else Path(DEFAULT_FILE)
         assert (
@@ -56,8 +48,8 @@ class Options:
 
 
 class Stats:
-    def __init__(self, options: Options) -> None:
-        self.options: Options = options
+    def __init__(self, options: CmdLineOptions) -> None:
+        self.options: CmdLineOptions = options
         self.tot_num_to_run: int = 0
         self.num_running: int = 0
         self.num_finished: int = 0
@@ -109,50 +101,26 @@ class Stats:
 
 class TallyApp:
     def __init__(self, args: Namespace):
+        self.options = CmdLineOptions(args)
+        self.stats = Stats(self.options)
+
         self.console = Console()
         self.term = Terminal()
         self.event = Event()
         self.table = Table(
             highlight=True, expand=True, show_lines=args.lines, box=rounded
         )
-        self.progress_pretest = Progress(
-            TextColumn("Waiting for tests to start..."),
-            BarColumn(style="bar.pulse", bar_width=None),
-            expand=True,
-        )
-        self.progress_testing = Progress(
-            SpinnerColumn(),
-            TextColumn("Testing In Progress"),
-            BarColumn(style="bar.back", bar_width=None),
-            TaskProgressColumn(),
-            expand=True,
-        )
-        self.progress_finished = Progress(
-            TextColumn("Testing Complete!"),
-            BarColumn(style="bar.finished", bar_width=None),
-            TaskProgressColumn(),
-            expand=True,
-        )
 
-        # TaskProgressColumn, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
-        # self.progress = Progress(
-        #     # SpinnerColumn(),
-        #     # TextColumn("[progress.percentage]{task.percentage:>3.0f}%", style="bright_yellow"),
-        #     TextColumn("Waiting for tests to start...", style="bright_yellow"),
-        #     BarColumn(bar_width=None),
-        #     TextColumn("[progress.percentage]{task.percentage:>3.0f}%", style="bright_yellow"),
-        #     expand=True,
-        # )
-        self.progress = self.progress_pretest
-        self.progress_task = self.progress.add_task(
-            "Waiting for tests to start...",
-            start=False,
-            style="bar.pulse",
+        self.progress = Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            expand=True,
+        )
+        self.task_id = self.progress.add_task(
+            "Waiting for tests to start...", start=False
         )
         self.panel_progress = Panel(self.progress)
-
-        self.options = Options(args)
-        self.stats = Stats(self.options)
 
     def kb_input(self):
         while True:
@@ -164,9 +132,9 @@ class TallyApp:
                     os._exit(0)
 
     def main_panel_group(self, stylize_last_line: bool = True) -> Group:
-        # main table (no panel container; it stands alone, looks better that way);
+        # Main table (no panel container; it stands alone, looks better that way);
         # it's ok to loop over a Rich Table because it just redraws each iteration;
-        # in fact the Table class does not even have an update() method.
+        # in fact, the Table class does not even have an update() method.
         self.table = Table(
             highlight=True, expand=True, show_lines=self.options.lines, box=rounded
         )
@@ -174,14 +142,14 @@ class TallyApp:
         self.table.add_column("Duration")
         self.table.add_column("Outcome")
 
-        # wait till plugin.py starts to populate results file
+        # Wait till plugin.py starts to populate results file
         if (
             not hasattr(self.stats.test_session_data, "tally_tests")
             or not self.stats.test_session_data.tally_tests
         ):
             return self.panel_progress
 
-        # accommodate optional execution flag for max rows to display ("-x"),
+        # Accommodate optional execution flag for max rows to display ("-x"),
         num_table_rows = (
             len(self.stats.test_session_data.tally_tests)
             if self.options.max_rows == 0
@@ -191,7 +159,7 @@ class TallyApp:
             -num_table_rows:
         ]
 
-        # for each test result, add a row to the table with test info
+        # For each test result, add a row to the table with test info
         for _, test in enumerate(tally_tests):
             name = Text(test["node_id"], style="bold blue")
             duration = (
@@ -209,8 +177,7 @@ class TallyApp:
                 outcome.stylize("bold blue")
                 name.stylize("bold blue")
 
-            # show spinny progress icon for last line of table unless session is over;
-            # this ensures final rendered table won't have spinny icon frozen in time
+            # Show spinny progress icon for last line of table while session running
             if stylize_last_line:
                 if _ == len(tally_tests) - 1:
                     name = Status(name)
@@ -220,39 +187,37 @@ class TallyApp:
             else:
                 self.table.add_row(name, render(duration, "s"), outcome)
 
-        # update progress bar w/ containing panel
         self.stats.update_stats()
+
         if self.stats.testing_started:
-            if self.stats.testing_complete:
-                self.progress = self.progress_finished
-                self.progress_task = self.progress.add_task(
-                    "Waiting for tests to start...", start=False
-                )
-                self.panel_progress = Panel(self.progress)
+            if not self.stats.testing_complete:
+                # self.progress.tasks[
+                #     self.task_id
+                # ].description = "Testing In Progress..."
+                if not self.progress.tasks[self.task_id].started:
+                    self.progress.start_task(self.task_id)
                 self.progress.update(
-                    self.progress_task,
-                    # description="Testing Complete",
+                    self.task_id,
                     total=self.stats.tot_num_to_run,
                     completed=self.stats.num_finished,
+                    description="Testing In Progress...",
                     refresh=True,
-                    style="bar.finished",
+                )
+            else:  # testing complete
+                self.progress.update(
+                    self.task_id,
+                    total=self.stats.tot_num_to_run,
+                    completed=self.stats.num_finished,
+                    description="Testing Complete",
+                    refresh=True,
                 )
                 time.sleep(1)
-                self.progress.stop_task(self.progress_task)
-            else:
-                self.progress = self.progress_testing
-                self.progress_task = self.progress.add_task("Running tests", start=True)
-                self.panel_progress = Panel(self.progress)
-                self.progress.update(
-                    self.progress_task,
-                    # description="Testing...",
-                    # start=True,
-                    total=self.stats.tot_num_to_run,
-                    completed=self.stats.num_finished,
-                    style="bar.complete",
-                )
+                self.progress.stop_task(self.task_id)
 
-        # rederable group; members depend on what phase of test session we are in
+        # Rederable group - members depend on what phase of test session we are in:
+        # Before tests start, only show progress bar
+        # After tests start, show progress bar and table
+        # After tests finish, show progress bar, table, and last line of test output
         @group()
         def get_panels(finished: bool = False):
             if not self.stats.testing_started:
@@ -276,35 +241,25 @@ class TallyApp:
         return get_panels()
 
     def rich_client(self) -> None:
-        # put thread into a loop that proceseses pytest results until session is complete
+        # Put thread into a loop that proceseses pytest results until test
+        # session is complete
         self.stats.update_stats(init=True)
 
         with Live(
             self.main_panel_group(),
             vertical_overflow="visible",
-            refresh_per_second=8,
         ) as live:
             while not self.stats.testing_complete:
-                # time.sleep(0.25)
                 live.update(self.main_panel_group())
                 self.stats.update_stats()
 
-                self.progress.update(
-                    self.progress_task,
-                    completed=self.stats.num_finished,
-                    refresh=True,
-                )
-
-            # Don't stylize (show spinny progress icon) if tests are finished
+            # Don't show spinny progress icon since tests are now finished,
+            # otherwise it will appear frozen in time
             live.update(self.main_panel_group(stylize_last_line=False))
 
-        # the test session is finished, so we signal the kb_input
-        # thread to exit, then exit ourselves
+        # Make a final query of the stats to ensure latest results
+        # Set the event, to signal to the kb_input thread to exit
         self.stats.update_stats()
-        live.update(self.main_panel_group(stylize_last_line=False))
-        self.progress.update(
-            self.progress_task, completed=self.stats.num_finished, refresh=True
-        )
         self.event.set()
 
 
@@ -318,7 +273,6 @@ def main():
         action="version",
         version="%(prog)s {version}".format(version=__version__),
     )
-
     parser.add_argument(
         "-l",
         "--lines",
@@ -326,13 +280,6 @@ def main():
         default=False,
         help="draw separation [l]ines in between each table row (default: False)",
     )
-    # parser.add_argument(
-    #     "-p",
-    #     "--persist",
-    #     action="store_true",
-    #     default=False,
-    #     help="persist table after tests are finished (default: False)",
-    # )
     parser.add_argument(
         "-x",
         "--max_rows",
@@ -351,10 +298,12 @@ def main():
     )
     args = parser.parse_args()
 
+    # Create main app
     tally_app = TallyApp(args)
     tally_app.console.clear()
     clear_file(tally_app.options.filename)
 
+    # Start threads and signaling event
     tally_app.event = Event()
     t1 = Thread(target=tally_app.rich_client)
     t2 = Thread(target=tally_app.kb_input)

@@ -191,6 +191,7 @@
     {% endif %}
 
     <script>
+        var fetchRate = {{ fetch_rate }};
 
         // Function to fetch updated results from the server
         function fetchResults() {
@@ -208,47 +209,6 @@
         // Call fetchResults() initially to load the results
         fetchResults();
 
-        // // Function to update the table with new data
-        // function updateTable(results) {
-        //     // Update the table rows with the new data
-        //     const tableBody = document.querySelector('tbody');
-        //     tableBody.innerHTML = '';
-
-        //     for (const [nodeId, test] of Object.entries(results.tally_tests)) {
-        //         const row = document.createElement('tr');
-        //         row.innerHTML = `
-        //             <td>${nodeId}</td>
-        //             <td>${test.timer.running ? '<div class="spinner"></div>' : test.test_duration}</td>
-        //             <td style="color: ${getColor(test.test_outcome, test.timer.running)}">
-        //                 ${test.timer.running ? '---' : test.test_outcome}
-        //             </td>
-        //         `;
-
-        //         tableBody.appendChild(row);
-        //     }
-
-        //     // Update the bottom row with the test session progress
-        //     const bottomRow = document.querySelector('tfoot tr td');
-        //     if (results.session_started) {
-        //         if (!results.session_finished) {
-        //             bottomRow.innerHTML = 'Test in progress...<progress value="' + results.num_tests_have_run + '" max="' + results.num_tests_to_run + '"></progress>';
-        //         } else {
-        //             bottomRow.innerHTML = 'Testing Complete!<progress value="' + results.num_tests_to_run + '" max="' + results.num_tests_to_run + '"></progress>';
-
-        //             // Call updateLastLine() only if the latest test is not running
-        //             const lastTest = results.tally_tests[Object.keys(results.tally_tests).pop()];
-        //             if (!lastTest.timer.running) {
-        //                 updateLastLine(results);
-        //             }
-        //         }
-        //     } else {
-        //         bottomRow.innerHTML = 'Waiting for data...';
-        //     }
-
-        //     // After updating the table, scroll to the bottom
-        //     const tableContainer = document.getElementById('table-container');
-        //     tableContainer.scrollTop = tableContainer.scrollHeight;
-        // }
 
         // Function to update the table with new data
         function updateTable(results) {
@@ -409,7 +369,7 @@
         lastLine.innerHTML = colorCodeOutcomeWords(lineText);
 
         // Periodically fetch updated results (ms)
-        setInterval(fetchResults, 1000);
+        setInterval(fetchResults, fetchRate);
 
     </script>
 </body>

@@ -42,7 +42,7 @@ setup(
     include_package_data=True,
     classifiers=[
         "Framework :: Pytest",
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Testing",
         "Programming Language :: Python :: 3.8",
@@ -56,7 +56,8 @@ setup(
     entry_points={
         "pytest11": ["pytest_tally = pytest_tally.plugin"],
         "console_scripts": [
-            "tally = pytest_tally.clients.rich_dashboard:main",
+            "tally-rich = pytest_tally.clients.rich_dashboard:main",
+            "tally-flask = pytest_tally.clients.app:main",
         ],
     },
 )
