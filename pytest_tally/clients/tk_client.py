@@ -2,6 +2,7 @@ import json
 import logging
 import sys
 import tkinter as tk
+from dataclasses import dataclass
 from pathlib import Path
 from tkinter import filedialog
 from tkinter.ttk import Notebook, Progressbar
@@ -13,6 +14,19 @@ from watchdog.observers import Observer
 from pytest_tally import __version__
 from pytest_tally.plugin import DEFAULT_FILE, TallySession
 from pytest_tally.utils import LocakbleJsonFileUtils, clear_file
+
+
+@dataclass
+class TableColumn:
+    name: str
+    width: int
+
+
+TABLE_COLUMNS = [
+    TableColumn("  node_id", 70),
+    TableColumn("  duration", 20),
+    TableColumn("  outcome", 20),
+]
 
 
 class Duration(Quantity):
@@ -121,7 +135,7 @@ class TestResultsGUI:
         self.file_label = tk.Label(self.config_frame, text="File Path:")
         self.file_label.grid(row=0, column=0, sticky="w")
 
-        self.file_entry = tk.Entry(self.config_frame, width=50)
+        self.file_entry = tk.Entry(self.config_frame, width=20)
         self.file_entry.grid(row=0, column=1, padx=5, sticky="w")
 
         self.browse_button = tk.Button(
@@ -147,13 +161,34 @@ class TestResultsGUI:
         self.table_header = tk.Frame(self.table_frame)
         self.table_header.pack()
 
-        headers = ["node_id", "test_duration", "test_outcome"]
-        for i, header in enumerate(headers):
-            label = tk.Label(self.table_header, text=header, font=("Arial", 14, "bold"))
+        for i, header in enumerate(TABLE_COLUMNS):
+            label = tk.Label(
+                self.table_header,
+                text=header.name,
+                font=("Arial", 14, "bold"),
+                width=header.width,
+                anchor="w",
+            )
             label.grid(row=0, column=i, padx=10, pady=5, sticky="w")
 
-        self.table_body = tk.Frame(self.table_frame)
-        self.table_body.pack()
+        self.table_canvas = tk.Canvas(self.table_frame, height=400)
+        self.table_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.table_scrollbar = tk.Scrollbar(
+            self.table_frame, orient=tk.VERTICAL, command=self.table_canvas.yview
+        )
+        self.table_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.table_canvas.configure(yscrollcommand=self.table_scrollbar.set)
+        self.table_canvas.bind(
+            "<Configure>",
+            lambda e: self.table_canvas.configure(
+                scrollregion=self.table_canvas.bbox("all")
+            ),
+        )
+
+        self.table_body = tk.Frame(self.table_canvas)
+        self.table_canvas.create_window((0, 0), window=self.table_body, anchor="nw")
 
     def browse_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
@@ -197,20 +232,29 @@ class TestResultsGUI:
             row_frame.grid(row=i, column=0, padx=5, pady=2, sticky="w")
 
             node_id_label = tk.Label(
-                row_frame, text=result["node_id"], anchor="w", wraplength=400
+                row_frame,
+                text=result["node_id"],
+                font=("Arial", 14),
+                width=TABLE_COLUMNS[0].width,
+                anchor="w",
             )
             node_id_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
 
             duration_label = tk.Label(
                 row_frame,
                 text=render(Duration(result["test_duration"]), "s"),
+                font=("Arial", 14),
+                width=TABLE_COLUMNS[1].width,
                 anchor="w",
-                wraplength=100,
             )
             duration_label.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
             outcome_label = tk.Label(
-                row_frame, text=result["test_outcome"], anchor="w", wraplength=100
+                row_frame,
+                text=result["test_outcome"],
+                font=("Arial", 14),
+                width=TABLE_COLUMNS[2].width,
+                anchor="w",
             )
             outcome_label.grid(row=0, column=2, padx=10, pady=5, sticky="w")
 
@@ -242,6 +286,6 @@ class TestResultsGUI:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry("1200x600")  # Set the initial size of the app window
+    root.geometry("1100x600")  # Set the initial size of the app window
     gui = TestResultsGUI(root)
     root.mainloop()
