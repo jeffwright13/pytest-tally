@@ -6,12 +6,18 @@ from pathlib import Path
 from tkinter import filedialog
 from tkinter.ttk import Notebook, Progressbar
 
+from quantiphy import Quantity, render
 from watchdog.events import FileSystemEventHandler, LoggingEventHandler
 from watchdog.observers import Observer
 
 from pytest_tally import __version__
 from pytest_tally.plugin import DEFAULT_FILE, TallySession
 from pytest_tally.utils import LocakbleJsonFileUtils, clear_file
+
+
+class Duration(Quantity):
+    units = "s"
+    prec = 2
 
 
 class Stats:
@@ -81,27 +87,29 @@ class TestResultsGUI:
     def __init__(self, root):
         self.root = root
         self.stats = Stats()
-        self.file_path = None
+        self.file_path = DEFAULT_FILE
         self.max_rows = None
 
         self.create_widgets()
         self.file_observer = None  # Initialize the file_observer attribute
+        if self.file_path:
+            self.start_file_monitoring()
         # self.start_file_monitoring()
 
     def create_widgets(self):
         self.title_label = tk.Label(
-            self.root, text="Test Results", font=("Arial", 16, "bold")
+            self.root, text="Test Results", font=("Arial", 18, "bold")
         )
-        self.title_label.pack()
+        self.title_label.grid(row=0, column=0, columnspan=3, pady=10)
 
         self.notebook = Notebook(self.root)
-        self.notebook.pack(pady=10, fill=tk.BOTH, expand=True)
+        self.notebook.grid(row=1, column=0, columnspan=3, pady=10, sticky="nsew")
+
+        self.table_tab = tk.Frame(self.notebook)
+        self.notebook.add(self.table_tab, text="Results")
 
         self.config_tab = tk.Frame(self.notebook)
         self.notebook.add(self.config_tab, text="Configuration")
-
-        self.table_tab = tk.Frame(self.notebook)
-        self.notebook.add(self.table_tab, text="Table")
 
         self.create_config_widgets()
         self.create_table_widgets()
@@ -111,26 +119,26 @@ class TestResultsGUI:
         self.config_frame.pack(pady=10)
 
         self.file_label = tk.Label(self.config_frame, text="File Path:")
-        self.file_label.pack(side=tk.LEFT)
+        self.file_label.grid(row=0, column=0, sticky="w")
 
         self.file_entry = tk.Entry(self.config_frame, width=50)
-        self.file_entry.pack(side=tk.LEFT)
+        self.file_entry.grid(row=0, column=1, padx=5, sticky="w")
 
         self.browse_button = tk.Button(
             self.config_frame, text="Browse", command=self.browse_file
         )
-        self.browse_button.pack(side=tk.LEFT)
+        self.browse_button.grid(row=0, column=2, padx=5, sticky="w")
 
         self.max_rows_label = tk.Label(self.config_frame, text="Max Rows:")
-        self.max_rows_label.pack(side=tk.LEFT)
+        self.max_rows_label.grid(row=0, column=3, padx=5, sticky="w")
 
         self.max_rows_entry = tk.Entry(self.config_frame, width=10)
-        self.max_rows_entry.pack(side=tk.LEFT)
+        self.max_rows_entry.grid(row=0, column=4, padx=5, sticky="w")
 
         self.apply_button = tk.Button(
             self.config_frame, text="Apply", command=self.apply_config
         )
-        self.apply_button.pack(side=tk.LEFT)
+        self.apply_button.grid(row=0, column=5, padx=5, sticky="w")
 
     def create_table_widgets(self):
         self.table_frame = tk.Frame(self.table_tab)
@@ -140,9 +148,9 @@ class TestResultsGUI:
         self.table_header.pack()
 
         headers = ["node_id", "test_duration", "test_outcome"]
-        for header in headers:
-            label = tk.Label(self.table_header, text=header, font=("Arial", 12, "bold"))
-            label.pack(side=tk.LEFT, padx=10)
+        for i, header in enumerate(headers):
+            label = tk.Label(self.table_header, text=header, font=("Arial", 14, "bold"))
+            label.grid(row=0, column=i, padx=10, pady=5, sticky="w")
 
         self.table_body = tk.Frame(self.table_frame)
         self.table_body.pack()
@@ -184,18 +192,27 @@ class TestResultsGUI:
         sorted_results = sorted(results.values(), key=lambda x: x["node_id"])
 
         # Display the maximum number of rows specified
-        for result in sorted_results[: self.max_rows]:
+        for i, result in enumerate(sorted_results[: self.max_rows]):
             row_frame = tk.Frame(self.table_body)
-            row_frame.pack()
+            row_frame.grid(row=i, column=0, padx=5, pady=2, sticky="w")
 
-            node_id_label = tk.Label(row_frame, text=result["node_id"])
-            node_id_label.pack(side=tk.LEFT, padx=10)
+            node_id_label = tk.Label(
+                row_frame, text=result["node_id"], anchor="w", wraplength=400
+            )
+            node_id_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
 
-            duration_label = tk.Label(row_frame, text=result["test_duration"])
-            duration_label.pack(side=tk.LEFT, padx=10)
+            duration_label = tk.Label(
+                row_frame,
+                text=render(Duration(result["test_duration"]), "s"),
+                anchor="w",
+                wraplength=100,
+            )
+            duration_label.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
-            outcome_label = tk.Label(row_frame, text=result["test_outcome"])
-            outcome_label.pack(side=tk.LEFT, padx=10)
+            outcome_label = tk.Label(
+                row_frame, text=result["test_outcome"], anchor="w", wraplength=100
+            )
+            outcome_label.grid(row=0, column=2, padx=10, pady=5, sticky="w")
 
     def start_file_monitoring(self):
         if self.file_path is not None and self.file_path.is_file():
@@ -224,22 +241,7 @@ class TestResultsGUI:
 
 
 if __name__ == "__main__":
-    # logging.basicConfig(level=logging.INFO,
-    #                     format='%(asctime)s - %(message)s',
-    #                     datefmt='%Y-%m-%d %H:%M:%S')
-
-    # path = sys.argv[1] if len(sys.argv) > 1 else "/Users/jwr003/coding/pytest-tally/tally-data.json"
-    # event_handler = LoggingEventHandler()
-    # observer = Observer()
-    # observer.schedule(event_handler, path, recursive=False)
-    # observer.start()
-    # try:
-    #     while observer.isAlive():
-    #         observer.join(1)
-    # finally:
-    #     observer.stop()
-    #     observer.join()
-
     root = tk.Tk()
+    root.geometry("1200x600")  # Set the initial size of the app window
     gui = TestResultsGUI(root)
     root.mainloop()
