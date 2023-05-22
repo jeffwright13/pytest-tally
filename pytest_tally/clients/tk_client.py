@@ -1,7 +1,9 @@
 import json
 import logging
+import shutil
 import sys
 import tkinter as tk
+import tkinter.font as tkfont
 from dataclasses import dataclass
 from pathlib import Path
 from tkinter import filedialog
@@ -15,8 +17,9 @@ from pytest_tally import __version__
 from pytest_tally.plugin import DEFAULT_FILE, TallySession
 from pytest_tally.utils import LocakbleJsonFileUtils, clear_file
 
-APP_HEIGHT = 600
-APP_WIDTH = 1100
+TERM_SIZE = shutil.get_terminal_size()
+APP_HEIGHT = 700
+APP_WIDTH = 1020
 APP_TITLE = f"Pytest Tally v{__version__}"
 
 
@@ -120,6 +123,11 @@ class TestResultsGUI:
         )
         self.title_label.grid(row=0, column=0, columnspan=3, pady=10)
 
+        self.resize_button = tk.Button(
+            self.root, text="Resize", command=self.resize_window
+        )
+        self.resize_button.grid(row=1, column=0, pady=10)
+
         self.notebook = Notebook(self.root)
         self.notebook.grid(row=1, column=0, columnspan=3, pady=10, sticky="nsew")
 
@@ -131,6 +139,18 @@ class TestResultsGUI:
 
         self.create_config_widgets()
         self.create_table_widgets()
+
+        # Create a label to display the lastline
+        self.lastline_label = tk.Label(
+            self.root,
+            font=tkfont.Font(family="Arial", size=14, weight="bold"),
+            justify=tk.CENTER,
+            # anchor="nsew",
+            wraplength=APP_WIDTH - 100,
+        )
+        self.lastline_label.grid(
+            row=2, column=0, columnspan=3, padx=10, pady=5, sticky="nsew"
+        )
 
     def create_config_widgets(self):
         self.config_frame = tk.Frame(self.config_tab)
@@ -178,21 +198,42 @@ class TestResultsGUI:
         self.table_canvas = tk.Canvas(self.table_frame, height=400)
         self.table_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
+        # Create the table body and configure the canvas
+        self.table_body = tk.Frame(self.table_canvas)
+        self.table_canvas.create_window((0, 0), window=self.table_body, anchor="nw")
+
+        # Create the scrollbar after creating the canvas
         self.table_scrollbar = tk.Scrollbar(
             self.table_frame, orient=tk.VERTICAL, command=self.table_canvas.yview
         )
         self.table_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
+        # Configure the canvas to use the scrollbar
         self.table_canvas.configure(yscrollcommand=self.table_scrollbar.set)
-        self.table_canvas.bind(
+
+        # Bind the scrollbar and canvas together
+        self.table_scrollbar.config(command=self.table_canvas.yview)
+        self.table_canvas.bind_all(
+            "<MouseWheel>",
+            lambda event: self.table_canvas.yview_scroll(
+                int(-1 * (event.delta / 120)), "units"
+            ),
+        )
+
+        # Configure the table_body to expand with the window size
+        self.table_body.bind(
             "<Configure>",
-            lambda e: self.table_canvas.configure(
+            lambda event: self.table_canvas.configure(
                 scrollregion=self.table_canvas.bbox("all")
             ),
         )
 
-        self.table_body = tk.Frame(self.table_canvas)
+        # Attach the table_body to the canvas
         self.table_canvas.create_window((0, 0), window=self.table_body, anchor="nw")
+
+        # Create the footer frame
+        self.table_footer = tk.Frame(self.table_frame)
+        self.table_footer.pack(side=tk.BOTTOM, fill=tk.X, pady=10)
 
     def browse_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
@@ -220,10 +261,10 @@ class TestResultsGUI:
             else:
                 print("Error loading test session data.")
         else:
-            print("Invalid file path 2.")
+            print("Invalid file path.")
 
     def update_table(self, results):
-        # Clear the table
+        # Clear the table body
         for widget in self.table_body.winfo_children():
             widget.destroy()
 
@@ -262,6 +303,14 @@ class TestResultsGUI:
             )
             outcome_label.grid(row=0, column=2, padx=10, pady=5, sticky="w")
 
+        # Clear the lastline label
+        self.lastline_label.config(text="")
+
+        # Update the lastline label with final test results
+        if self.stats.test_session_data:
+            lastline = self.stats.test_session_data.lastline
+            self.lastline_label.config(text=lastline)
+
     def start_file_monitoring(self):
         if self.file_path is not None and self.file_path.is_file():
             event_handler = FileChangeEventHandler(self.file_changed_callback)
@@ -274,7 +323,7 @@ class TestResultsGUI:
             )
             self.file_observer.start()
         else:
-            print("Invalid file path 1.")
+            print("Invalid file path.")
 
     def file_changed_callback(self):
         self.fetch_results()
@@ -286,6 +335,12 @@ class TestResultsGUI:
 
     def __del__(self):
         self.stop_file_monitoring()
+
+    def resize_window(self):
+        new_height = min(
+            TERM_SIZE.height - 200, self.stats.test_session_data.tot_num_to_run
+        )
+        self.root.geometry(f"{APP_WIDTH}x{new_height}")
 
 
 if __name__ == "__main__":
