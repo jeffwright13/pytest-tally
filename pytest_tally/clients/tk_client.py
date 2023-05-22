@@ -15,6 +15,10 @@ from pytest_tally import __version__
 from pytest_tally.plugin import DEFAULT_FILE, TallySession
 from pytest_tally.utils import LocakbleJsonFileUtils, clear_file
 
+APP_HEIGHT = 600
+APP_WIDTH = 1100
+APP_TITLE = f"Pytest Tally v{__version__}"
+
 
 @dataclass
 class TableColumn:
@@ -108,7 +112,6 @@ class TestResultsGUI:
         self.file_observer = None  # Initialize the file_observer attribute
         if self.file_path:
             self.start_file_monitoring()
-        # self.start_file_monitoring()
 
     def create_widgets(self):
         self.title_label = tk.Label(
@@ -286,6 +289,6 @@ class TestResultsGUI:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry("1100x600")  # Set the initial size of the app window
+    root.geometry(f"{APP_WIDTH}x{APP_HEIGHT}")
     gui = TestResultsGUI(root)
     root.mainloop()
