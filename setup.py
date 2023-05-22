@@ -14,7 +14,7 @@ def read(fname):
 
 setup(
     name="pytest-tally",
-    version="1.3.0",
+    version="1.3.1",
     author="Jeff Wright",
     author_email="jeff.washcloth@gmail.com",
     license="MIT",
@@ -37,6 +37,7 @@ setup(
         "rich==13.3.2",
         "single-source==0.3.0",
         "strip-ansi==0.1.1",
+        "watchdog==3.0.0",
     ],
     setup_requires=["setuptools_scm"],
     include_package_data=True,

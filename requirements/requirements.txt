@@ -32,13 +32,15 @@ pygments==2.15.0
     # via rich
 quantiphy==2.19
     # via -r requirements/requirements.in
-rich==13.3.4
+rich==13.3.2
     # via -r requirements/requirements.in
 single-source==0.3.0
     # via -r requirements/requirements.in
 six==1.16.0
     # via blessed
 strip-ansi==0.1.1
+    # via -r requirements/requirements.in
+watchdog==3.0.0
     # via -r requirements/requirements.in
 wcwidth==0.2.6
     # via blessed

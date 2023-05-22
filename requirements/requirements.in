@@ -1,7 +1,8 @@
 blessed==1.20.0
 count-timer==0.3.8
-flask
-quantiphy
-rich
+flask==2.3.2
+quantiphy==2.19
+rich==13.3.2
 single-source==0.3.0
 strip-ansi==0.1.1
+watchdog==3.0.0
