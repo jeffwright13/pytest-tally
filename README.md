@@ -1,8 +1,14 @@
 # pytest-tally
 
-### A Pytest plugin that displays test run progress in-console or in-browser.
+### A Pytest plugin that displays test run progress in-console, in-app or in-browser.
 
+## Using Rich:
 ![2023-04-14 18 34 48](https://user-images.githubusercontent.com/4308435/232174467-752c5d13-15e3-4c23-9430-1087050af0a4.gif)
+
+## Using Tkinter:
+![2023-05-21 23 33 27](https://github.com/jeffwright13/pytest-tally/assets/4308435/7bb98b54-f796-4249-81d0-f2c283a7c6a3)
+
+## Using Flask:
 ![2023-05-17 15 15 02](https://github.com/jeffwright13/pytest-tally/assets/4308435/a35151e2-64fe-40e2-bd2e-9a59033edcd3)
 
 
@@ -11,12 +17,9 @@ I run a lot of long-duration test campaigns that generate copious amounts of con
 
 This plugin writes up-to-date summary statistics for each test, as it executes, to a JSON file on disk. That file is then continually read by a small client that prints results to terminal or in-browser. That way I can split my screen and monitor both the raw console output from Pytest, and the client's summary output, at the same time. Mmmm. Life suddenly just became a little easier and brighter. :-)
 
-There are three clients included in this repo:
-- Rich text-based client that runs in the terminal
-- HTML client that runs in the browser (via a Flask web-app)
-- TkInter GUI
+## Also - why??
 
-Each of these has known issues (see below), but are functional. You are welcome to improve upon any of these, or write your own and submit a PR if you like.
+Because I'm a geek and I like learning new stuff about Python. This project made me learn about realtime file syncing, different ways of presenting data, how to get ChatGpt to write stuff for you, and a lot more!
 
 ## Install
 For most users: `pip install pytest-tally`
@@ -24,6 +27,13 @@ For users who like to 'roll their own': `pip install -r requirements/requirement
 For power users who want the dev dependencies: `pip install -r requirements/requirements-dev.txt && pip install pytest-tally`
 
 ## Usage
+
+There are three clients included in this repo:
+- Rich text-based client that runs in the terminal
+- HTML client that runs in the browser (via a Flask web-app)
+- TkInter GUI
+
+Each of these has known issues (see below), but are functional. You are welcome to improve upon any of these, or write your own and submit a PR if you like.
 
 To use text-based Rich client to display test results in-console as the tests run, open another terminal session, activate your venv, and type in `tally` to start the text-based client. Press the "q" key to quit the text-based client.
 
