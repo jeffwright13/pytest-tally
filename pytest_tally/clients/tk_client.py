@@ -343,8 +343,12 @@ class TestResultsGUI:
         self.root.geometry(f"{APP_WIDTH}x{new_height}")
 
 
-if __name__ == "__main__":
+def main():
     root = tk.Tk()
     root.geometry(f"{APP_WIDTH}x{APP_HEIGHT}")
-    gui = TestResultsGUI(root)
+    TestResultsGUI(root)
     root.mainloop()
+
+
+if __name__ == "__main__":
+    main()

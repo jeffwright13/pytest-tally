@@ -14,7 +14,7 @@ def read(fname):
 
 setup(
     name="pytest-tally",
-    version="1.2.0",
+    version="1.3.0",
     author="Jeff Wright",
     author_email="jeff.washcloth@gmail.com",
     license="MIT",
@@ -58,6 +58,7 @@ setup(
         "console_scripts": [
             "tally-rich = pytest_tally.clients.rich_dashboard:main",
             "tally-flask = pytest_tally.clients.app:main",
+            "tally-tk = pytest_tally.clients.tk_client:main",
         ],
     },
 )
