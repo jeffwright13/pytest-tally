@@ -104,6 +104,7 @@ class FileChangeEventHandler(FileSystemEventHandler):
 class TestResultsGUI:
     def __init__(self, root):
         self.root = root
+        self.root.title(APP_TITLE)
         self.stats = Stats()
         self.file_path = DEFAULT_FILE
         self.max_rows = None
